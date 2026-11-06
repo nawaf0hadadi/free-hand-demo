@@ -81,9 +81,10 @@
     if (!formEl) return 0;
     UI.clearErrors(formEl);
     let first = null;
+    const unseen = [];
     for (const [name, message] of Object.entries(errors)) {
       const el = formEl.querySelector(`[name="${name}"]`);
-      if (!el) continue;
+      if (!el) { unseen.push(message); continue; }
       const wrap = el.closest('.a-check') || el.closest('.fh-field, .a-field') || el.parentElement;
       wrap.classList.add('has-error');
       const note = document.createElement('small');
@@ -100,7 +101,9 @@
     F.icons();
     const count = Object.keys(errors).length;
     if (first) { first.focus({ preventScroll: true }); first.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
-    if (toast && count) F.toast(count === 1 ? 'راجع الحقل المظلّل.' : `راجع الحقول المظلّلة (${UI.num(count)}).`, true);
+    // A message whose field is not on screen is never dropped silently.
+    if (unseen.length) F.toast(unseen[0], true);
+    else if (toast && count) F.toast(count === 1 ? 'راجع الحقل المظلّل.' : `راجع الحقول المظلّلة (${UI.num(count)}).`, true);
     return count;
   };
   const clearOne = e => {
@@ -184,8 +187,84 @@
   /* ---------- Simple helpers shared by both layers ---------- */
   UI.mallId = () => V.mall()?.id || '';
   UI.myOrders = () => V.data.orders.filter(o => o.phone === A.session?.phone);
-  UI.openOrder = (mallId = UI.mallId()) => UI.myOrders().find(o => o.mall === mallId && o.status !== 'delivered');
+  UI.isClosed = o => ['delivered', 'cancelled'].includes(o?.status);
+  UI.openOrder = (mallId = UI.mallId()) => UI.myOrders().find(o => o.mall === mallId && !UI.isClosed(o));
   UI.myInvoices = (mallId = UI.mallId()) => V.data.invoices.filter(i => i.phone === A.session?.phone && i.mall === mallId && !i.order);
+  UI.isReady = i => i.ready !== false; // receipts saved before bag readiness existed count as ready
+
+  /* ---------- Shopper pass (QR and short code) ----------
+     Identifies one shopper at one mall for a short time. The QR carries only "FH1:<code>" —
+     no name, number or account id. A code expires after 10 minutes and is consumed when a
+     store links a receipt with it, so a captured code cannot be replayed later. */
+  const PASS_TTL = 10 * 60 * 1000;
+  const alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+  V.data.passes ||= [];
+  const randomCode = () => { const bytes = crypto.getRandomValues(new Uint8Array(8)); return [...bytes].map(x => alphabet[x % alphabet.length]).join(''); };
+  UI.pass = {
+    ttl: PASS_TTL,
+    format: code => code ? code.slice(0, 4) + '-' + code.slice(4) : '',
+    payload: code => 'FH1:' + code,
+    // Accepts a scanned payload or a typed code (with or without the dash, any case).
+    parse: text => { const raw = String(text || '').trim().toUpperCase().replace(/^FH1:/, '').replace(/[\s-]/g, ''); return /^[2-9A-HJ-NP-Z]{8}$/.test(raw) ? raw : null; },
+    current(phone, mallId) {
+      const now = Date.now();
+      return V.data.passes.find(p => p.phone === phone && p.mall === mallId && !p.usedAt && p.expiresAt > now) || null;
+    },
+    issue(phone, mallId) {
+      const now = Date.now();
+      // Drop this shopper's old passes for the mall and anything long expired.
+      V.data.passes = V.data.passes.filter(p => !(p.phone === phone && p.mall === mallId) && p.expiresAt > now - 24 * 3600 * 1000);
+      const pass = { code: randomCode(), phone, mall: mallId, issuedAt: now, expiresAt: now + PASS_TTL, usedAt: null };
+      V.data.passes.push(pass);
+      V.save();
+      return pass;
+    },
+    ensure(phone, mallId) { return UI.pass.current(phone, mallId) || UI.pass.issue(phone, mallId); },
+    // Result for a store at mallId: { pass } or { error }.
+    check(text, mallId) {
+      const code = UI.pass.parse(text);
+      if (!code) return { error: 'format' };
+      const pass = V.data.passes.find(p => p.code === code);
+      if (!pass) return { error: 'unknown' };
+      if (pass.usedAt) return { error: 'used' };
+      if (pass.expiresAt <= Date.now()) return { error: 'expired' };
+      if (pass.mall !== mallId) return { error: 'mall' };
+      return { pass };
+    },
+    consume(code) { const pass = V.data.passes.find(p => p.code === code); if (pass && !pass.usedAt) { pass.usedAt = Date.now(); V.save(); } }
+  };
+  UI.passErrors = {
+    format: 'الرمز 8 خانات من حروف وأرقام، مثل 7K3M-Q9XA.',
+    unknown: 'الرمز غير صحيح. تأكد منه أو ابحث برقم الجوال.',
+    used: 'استُخدم هذا الرمز من قبل. اطلب من العميل فتح رمزه من جديد.',
+    expired: 'انتهت صلاحية الرمز. اطلب من العميل تحديثه من التطبيق.',
+    mall: 'هذا الرمز صادر لمول آخر.'
+  };
+  UI.qrSvg = (text, size = 220) => {
+    if (!window.qrcode) return '';
+    const q = window.qrcode(0, 'M');
+    q.addData(text);
+    q.make();
+    const cell = Math.max(2, Math.floor(size / (q.getModuleCount() + 8)));
+    return q.createSvgTag({ cellSize: cell, margin: cell * 4, scalable: true, alt: 'رمز QR للتعريف بالمتسوّق' });
+  };
+  UI.qrDataUrl = (text, cell = 8) => { const q = window.qrcode(0, 'M'); q.addData(text); q.make(); return q.createDataURL(cell, cell * 4); };
+  const loaded = {};
+  UI.loadScript = src => loaded[src] ||= new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = resolve; s.onerror = () => { delete loaded[src]; reject(new Error('load ' + src)); };
+    document.head.appendChild(s);
+  });
+
+  /* Shopper names: first name (required) and last name (optional). */
+  UI.fullName = r => [r?.name, r?.lastName].filter(Boolean).join(' ');
+  UI.shortName = r => r?.name ? r.name + (r.lastName ? ' ' + r.lastName[0] + '.' : '') : '';
+
+  /* Status wording for staff screens (the shopper screens speak to the shopper). */
+  UI.staffStatus = o => (o?.exception ? ['يحتاج متابعة', 'error'] : ({
+    collecting: ['قيد الجمع', 'info'], ready: ['في الطريق إلى السيارة', 'info'], shipped: ['مع شركة التوصيل', 'info'],
+    delivered: ['مكتمل', 'muted'], cancelled: ['ملغى', 'muted']
+  })[o?.status] || ['—', 'muted']);
 
   /* ---------- App bar ----------
      Tab screens: brand mark, screen title and context (active mall or organisation).
@@ -206,6 +285,7 @@
     if (A.session.role === 'customer') {
       const mall = V.mall();
       context = `<button type="button" class="fh-mall-chip" data-action="go:malls" aria-label="المول الحالي: ${esc(mall?.name || 'لم تختر مولًا')}. تغيير المول">${ic('map-pin')}<span>${esc(mall?.name || 'اختر المول')}</span>${ic('chevron-down')}</button>
+        ${mall ? `<button type="button" class="fh-qr-chip" data-action="fh-my-code" aria-label="رمزي للكاشير">${ic('qr-code')}<span>رمزي</span></button>` : ''}
         <button type="button" class="fh-avatar" data-action="go:account" aria-label="حسابي">${ic('user-round')}</button>`;
     } else {
       context = `<button type="button" class="fh-org-chip" data-action="go:auth-account" aria-label="حساب ${esc(roleNames[A.session.role])}"><small>${esc(roleNames[A.session.role])}</small><span>${esc(A.session.organization || A.session.name || '')}</span></button>`;
@@ -289,10 +369,12 @@
       <section><h3>جولة الكاشير ← المتسوّق</h3>
         <ol class="fh-demo-steps">
           <li>ادخل كمتسوّق جديد برقم مثل <bdi dir="ltr">0551234567</bdi>، اكتب اسمك واختر «مول الواجهة».</li>
-          <li>سجّل الخروج من «حسابي»، ثم ادخل من «حسابات الأعمال» بحساب <bdi dir="ltr">store@example.com</bdi>.</li>
-          <li>«ربط فاتورة»: ابحث بالرقم، أكّد الاسم، أدخل الفاتورة واربطها.</li>
+          <li>افتح «رمزي» من الشريط العلوي. احفظ صورة الرمز أو انسخ الرمز المكتوب.</li>
+          <li>سجّل الخروج، ثم ادخل من «حسابات الأعمال» بحساب <bdi dir="ltr">store@example.com</bdi>.</li>
+          <li>«ربط فاتورة»: امسح الرمز (كاميرا أو صورة) أو اكتبه، أكّد الاسم، أدخل الفاتورة واربطها.</li>
           <li>سجّل الخروج وادخل بالرقم نفسه: الفاتورة في «المشتريات» جاهزة للجمع.</li>
         </ol>
+        <p>البديل دون رمز: يبحث الكاشير برقم الجوال المسجّل.</p>
       </section>
       <section><h3>حسابات الأعمال</h3><p>كلمة المرور لجميع الحسابات: <bdi dir="ltr">Demo1234!</bdi></p>
         <ul>${demoAccounts.map(([, label, email]) => `<li><span><strong>${label}</strong><bdi dir="ltr">${email}</bdi></span><button type="button" class="fh-demo-btn small" data-demo="fill" data-email="${email}">تعبئة</button></li>`).join('')}</ul>
@@ -337,10 +419,28 @@
   panel.id = 'demo-tools';
   panel.setAttribute('aria-label', 'أدوات العرض');
   panel.innerHTML = `<h2>${ic('wrench')} أدوات العرض</h2>${demoHTML()}`;
-  document.querySelector('.studio-layout')?.appendChild(panel);
+  panel.hidden = true;
+  // Collapsed by default so demo accounts never sit next to the shopper's sign-in.
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.id = 'demo-tools-toggle';
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.setAttribute('aria-controls', 'demo-tools');
+  toggle.innerHTML = `${ic('flask-conical')}<span>أدوات العرض</span>`;
+  toggle.addEventListener('click', () => {
+    panel.hidden = !panel.hidden;
+    toggle.setAttribute('aria-expanded', String(!panel.hidden));
+    toggle.querySelector('span').textContent = panel.hidden ? 'أدوات العرض' : 'إخفاء أدوات العرض';
+  });
+  document.querySelector('.studio-layout')?.append(panel, toggle);
   panel.addEventListener('click', onDemoClick);
   F.$('#app-overlay').addEventListener('click', onDemoClick);
   F.actions['fh-demo-tools'] = () => F.sheet('أدوات العرض', demoHTML());
+
+  /* Self-test: open the app with ?selftest=run (clears this browser's demo data first). */
+  if (new URLSearchParams(location.search).get('selftest') === 'run') {
+    window.addEventListener('load', () => setTimeout(() => UI.loadScript('tests/selftest.js?v=' + Date.now()), 400));
+  }
 
   /* Favicon and theme colour follow the new brand. */
   document.querySelector('link[rel="icon"]')?.setAttribute('href', 'assets/favicon.svg');

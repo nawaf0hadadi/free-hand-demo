@@ -363,7 +363,7 @@ F.actions['visit-stop-pickup']=button=>{
 };
 F.actions['visit-delivery-next']=()=>{
   const o=selectedOrder();
-  if(!o||o.stops.some(s=>!s.done)||o.status==='delivered')return;
+  if(!o||o.stops.some(s=>!s.done)||['delivered','cancelled'].includes(o.status)||o.exception)return;
   o.status=o.status==='collecting'?(o.destination==='home'?'shipped':'ready'):'delivered';
   save();F.render();F.toast(stage[o.status]);
 };

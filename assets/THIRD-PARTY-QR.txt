@@ -1,0 +1,16 @@
+QR code libraries bundled with this prototype
+
+qrcode-generator 1.4.4 (assets/qrcode-generator.min.js)
+  Copyright (c) 2009 Kazuhiko Arase — MIT License
+  Source: https://github.com/kazuhikoarase/qrcode-generator
+  Downloaded from https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js
+  SHA-256 164fc2c1c9eaf0a03aa8dfdb855e82e41a5c6922fbad8bb3238116207e26bef7
+  Used to draw the shopper's identification QR code.
+
+jsQR 1.4.0 (assets/jsQR.min.js)
+  Copyright Cosmo Wolfe — Apache License 2.0
+  Source: https://github.com/cozmo/jsQR
+  Downloaded from https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js
+  SHA-256 32214c74ee92d37de6d88276987690d996ce757668e82ca1709dba5e0be9fcce
+  Loaded only when store staff open the scanner, to read a QR from the camera or an image
+  when the browser has no built-in BarcodeDetector.

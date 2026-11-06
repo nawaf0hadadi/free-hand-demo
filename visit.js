@@ -44,10 +44,10 @@ const mask=phone=>'••••••'+phone.slice(-4);
 const customer=()=>A.session?.phone;
 const allOrders=()=>data.orders.filter(o=>o.phone===customer());
 const currentOrder=()=>allOrders().find(o=>o.id===F.s.visitOrderId)||allOrders().at(-1);
-const openOrder=()=>allOrders().find(o=>o.mall===mall()?.id&&o.status!=='delivered');
+const openOrder=()=>allOrders().find(o=>o.mall===mall()?.id&&!['delivered','cancelled'].includes(o.status));
 const invoiceItems=()=>data.invoices.filter(i=>i.phone===customer()&&i.mall===mall()?.id&&!i.order);
 const sum=items=>items.reduce((total,x)=>total+x.amount,0);
-const stage={collecting:'نجمع مشترياتك',ready:'في الطريق إلى سيارتك',shipped:'في الطريق إليك',delivered:'تم التسليم'};
+const stage={collecting:'نجمع مشترياتك',ready:'في الطريق إلى سيارتك',shipped:'في الطريق إليك',delivered:'تم التسليم',cancelled:'أُلغي الطلب'};
 const storeLogo=s=>`<span class="store-logo visit-logo">${s.logo?`<img src="${esc(s.logo)}" alt="">`:esc(s.name[0])}</span>`;
 Object.assign(V,{get,mall,stores,cash,line,idButton,page,hero,select,textInput,uid,mask,customer,stage,storeLogo,sum});
 
@@ -196,7 +196,7 @@ F.views.review=()=>{
     b('أكد وادفع تجريبيًا · '+cash(total()),'visit-pay'),'bags');
 };
 F.actions['visit-pay']=()=>{
-  const m=mall(),items=invoiceItems(),home=V.checkout.destination==='home',c=home?choice():null;
+  const m=mall(),ids=V.collectIds?.(),items=invoiceItems().filter(i=>i.ready!==false&&(!Array.isArray(ids)||ids.includes(i.id))),home=V.checkout.destination==='home',c=home?choice():null;
   if(!m||!items.length||openOrder()||!['home','parking'].includes(V.checkout.destination)||!home&&!V.checkout.parking||home&&!c)return F.toast('راجع المشتريات وخيار الاستلام.',true);
   const id='FH-'+(4100+data.orders.length);
   const o={id,mall:m.id,phone:customer(),destination:V.checkout.destination,point:home?'':V.checkout.parking,

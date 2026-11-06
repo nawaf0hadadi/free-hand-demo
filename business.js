@@ -418,6 +418,10 @@
       (pending.length
         ? UI.section('بانتظار قرارك', UI.status(UI.count(pending.length, 'request'), 'wait')) + `<div class="fh-list">${pending.map(s => `<button type="button" class="fh-task-row" data-action="join-review" data-id="${esc(s.id)}"><span class="fh-icon-tile">${ic('file-clock')}</span><span><strong>${esc(s.name)}</strong><small>${esc(s.category)} · ${UI.iso(s.floor)}${s.submittedAt ? ' · ' + date(s.submittedAt) : ''}</small></span><b>مراجعة</b></button>`).join('')}</div>`
         : UI.callout('circle-check', 'لا طلبات انضمام بانتظارك', 'تظهر هنا طلبات المتاجر التي تختار هذا المول.')) +
+      (() => {
+        const alerts = data.orders.filter(o => o.mall === m.id && !UI.isClosed(o) && (o.exception || o.stops.some(t => t.issue && !t.issue.resolved)));
+        return alerts.length ? UI.section('تنبيهات تشغيلية', UI.status(UI.count(alerts.length, 'order'), 'error')) + `<div class="fh-list">${alerts.map(o => orderCard(o)).join('')}</div>` : '';
+      })() +
       `<div class="fh-metrics">
         <button type="button" data-action="go:mall-stores"><strong>${UI.num(active.length)}</strong><small>متاجر مفعّلة</small></button>
         <button type="button" data-action="go:mall-live"><strong>${UI.num(orders.length)}</strong><small>طلبات جارية</small></button>
@@ -503,27 +507,37 @@
       b(ic('plus') + ' إضافة شركة', 'visit-carrier-new', 'secondary'), 'mall-carriers', false);
   };
 
-  const nextActor = o => ({
-    collecting: o.stops.every(s => s.done) ? (o.destination === 'home' ? 'فريق الجمع يسلّم الطلب لشركة التوصيل' : 'فريق الجمع يبدأ التوصيل إلى السيارة') : 'فريق الجمع يستلم من المتاجر',
-    ready: 'المندوب يسلّم عند السيارة', shipped: 'شركة التوصيل تسلّم للعميل', delivered: 'اكتمل'
+  const nextActor = o => o.exception ? 'إعادة جدولة التسليم بعد تعذّره' : ({
+    collecting: o.stops.every(s => s.done) ? (o.destination === 'home' ? 'تسليم الطلب لشركة التوصيل' : 'بدء التوصيل إلى السيارة') : 'الاستلام من المتاجر',
+    ready: 'التسليم للعميل عند سيارته', shipped: 'شركة التوصيل تسلّم للعميل', delivered: 'اكتمل', cancelled: 'ألغاه العميل'
   })[o.status] || '';
   UI.nextActor = nextActor;
+  const bagsIn = stop => stop.invoices.map(id => V.get('invoices', id)).filter(Boolean).reduce((n, i) => n + (i.bags || 0), 0);
+  UI.bagsIn = bagsIn;
+  const taskIcon = o => o.exception || o.stops.some(s => s.issue && !s.issue.resolved) ? 'triangle-alert' : ({ collecting: 'store', ready: 'car-front', shipped: 'truck', delivered: 'circle-check', cancelled: 'circle-x' })[o.status] || 'route';
+  // One card for every staff list: where to collect, how many bags, who has it, what is next.
   const orderCard = (o, action = '') => {
     const done = o.stops.filter(s => s.done).length;
-    const tone = o.status === 'delivered' ? 'muted' : 'info';
-    const inner = `<span class="fh-icon-tile">${ic(o.destination === 'home' ? 'truck' : 'car-front')}</span><span><strong><bdi dir="ltr">${esc(o.id)}</bdi> ${UI.status(esc(UI.statusTitle(o)), tone)}</strong>
-      <small>${esc(mallOf(o.mall)?.name || '')} · ${o.destination === 'home' ? 'إلى المنزل · ' + esc(o.carrier) : 'عند السيارة'} · الاستلام: ${UI.num(done)} من ${UI.count(o.stops.length, 'store')}</small>
-      ${o.status !== 'delivered' ? `<small class="fh-next-actor">${ic('arrow-left')} التالي: ${nextActor(o)}</small>` : ''}</span>`;
+    const [label, tone] = UI.staffStatus(o);
+    const bags = o.stops.reduce((n, s) => n + bagsIn(s), 0);
+    const stores = o.stops.map(s => { const st = V.get('stores', s.store); return `${esc(st?.name || 'متجر')} <bdi>(${esc(st?.floor || '')})</bdi>`; }).join('، ');
+    const openIssues = o.stops.filter(s => s.issue && !s.issue.resolved).length;
+    const inner = `<span class="fh-icon-tile${tone === 'error' || openIssues ? ' is-alert' : ''}">${ic(taskIcon(o))}</span><span><strong><bdi dir="ltr">${esc(o.id)}</bdi> ${UI.status(label, tone)}${openIssues ? ' ' + UI.status('ملاحظات: ' + UI.num(openIssues), 'wait') : ''}</strong>
+      <small>${ic('store')} ${stores}</small>
+      <small>${ic('shopping-bag')} ${UI.count(bags, 'bag')} · الاستلام ${UI.num(done)} من ${UI.num(o.stops.length)} · ${o.destination === 'home' ? 'إلى المنزل · ' + esc(o.carrier) : 'عند السيارة'}</small>
+      <small>${ic('user-round')} ${o.assignee ? 'المكلّف: ' + esc(o.assignee.name) : 'غير مسندة بعد'}</small>
+      ${UI.isClosed(o) ? '' : `<small class="fh-next-actor">${ic('arrow-left')} التالي: ${nextActor(o)}</small>`}</span>`;
     return action ? `<button type="button" class="fh-task-row" data-action="${action}" data-id="${esc(o.id)}">${inner}${ic('chevron-left')}</button>` : `<div class="fh-task-row">${inner}</div>`;
   };
   F.views['mall-live'] = () => {
     const m = approvedMall();
     if (!m) return F.views['u-mall-status']();
     const orders = data.orders.filter(o => o.mall === m.id).slice().reverse();
-    const active = orders.filter(o => o.status !== 'delivered');
+    const active = orders.filter(o => !UI.isClosed(o));
+    const closed = orders.filter(o => UI.isClosed(o));
     return page('طلبات الجمع', `<p class="fh-lead">متابعة فقط: يسجّل فريق الجمع والمندوب الخطوات من حساباتهم.</p>` +
       (orders.length ? (active.length ? UI.section('جارية') + `<div class="fh-list">${active.map(o => orderCard(o)).join('')}</div>` : '') +
-        (orders.length > active.length ? UI.section('مكتملة') + `<div class="fh-list">${orders.filter(o => o.status === 'delivered').map(o => orderCard(o)).join('')}</div>` : '')
+        (closed.length ? UI.section('مكتملة أو ملغاة') + `<div class="fh-list">${closed.map(o => orderCard(o)).join('')}</div>` : '')
         : UI.empty('route', 'لا طلبات بعد', 'تظهر طلبات المتسوّقين هنا بعد الدفع وتأكيد الطلب.')), '', 'mall-home');
   };
 
@@ -580,19 +594,20 @@
   };
 
   /* ---------- Store: link paid receipts ----------
-     One focused screen: (1) the shopper's registered mobile number → (2) the cashier confirms
-     the name and masked number → (3) the paid receipt. The receipt draft is kept while the
-     cashier corrects the number; editing the number clears any earlier match. A receipt barcode
-     only fills receipt data; the shopper is always identified by number (or fallback code). */
+     One focused screen: (1) identify the shopper by their QR / code, or by registered number as a
+     fallback → (2) the cashier confirms the name → (3) the paid receipt and its bags. Editing the
+     code or number clears an earlier match; the receipt draft is kept while the cashier recovers.
+     A receipt barcode only fills receipt data; it never identifies the shopper. */
   const awaiting = s => data.orders.filter(o => o.status === 'collecting' && o.stops.some(t => t.store === s.id && !t.done));
   const storeReady = s => !!s && !inReview(s) && s.active;
-  const cashierSteps = r => UI.steps(['رقم العميل', 'تأكيد الاسم', 'الفاتورة'], r?.person ? 2 : r?.candidate ? 1 : 0);
-  const blankInvoice = () => ({ phone: '', code: '', codeMode: false, candidate: null, person: null, miss: false, number: '', amount: '', bags: '1', source: 'manual' });
+  const cashierSteps = r => UI.steps(['تعريف العميل', 'تأكيد الاسم', 'الفاتورة'], r?.person ? 2 : r?.candidate ? 1 : 0);
+  const blankInvoice = () => ({ mode: 'code', phone: '', code: '', candidate: null, person: null, miss: false, number: '', amount: '', bags: '1', items: '', source: 'manual' });
   // A shopper must have a Free Hand account. 0500000000 («نورة») is the seeded demo shopper account.
   function findShopper(phone) {
     const record = A.model.records['customer:' + phone];
     if (!record && phone !== '0500000000') return null;
-    const name = record?.name && record.name !== 'متسوق Free Hand' ? record.name : phone === '0500000000' ? 'نورة' : '';
+    const usable = record?.name && record.name !== 'متسوق Free Hand';
+    const name = usable ? UI.shortName(record) : phone === '0500000000' ? 'نورة' : '';
     return { phone, name, visitMall: data.visits[phone]?.mall || null };
   }
   const shopperName = p => p.name || 'بدون اسم مسجّل';
@@ -602,17 +617,36 @@
     if (!s) return page('حساب المتجر', UI.empty('store', 'المتجر غير مرتبط بهذا الحساب', 'اطلب من إدارة المول إنشاء حساب لمتجرك أو قدّم طلب انضمام.'), b('تسجيل الخروج', 'auth-logout', 'secondary'), null, false);
     const m = mallOf(s.mall);
     const linked = data.invoices.filter(i => i.store === s.id);
+    const preparing = linked.filter(i => !i.order && !UI.isReady(i));
     const waiting = awaiting(s);
     return page('المتجر', `<section class="fh-org-head"><small>${esc(m?.name || '')}</small><h2>${esc(s.name)}</h2><p>${UI.iso(s.floor)}${s.active ? '' : ' · موقوف حاليًا'}</p></section>` +
       (s.active ? '' : UI.callout('circle-pause', 'المتجر موقوف من إدارة المول', 'لا يمكن ربط فواتير جديدة حتى تعيد الإدارة تفعيله.', 'warn')) +
       `<section class="a-card fh-review-block"><h3>${ic('receipt-text')} ربط فاتورة مدفوعة</h3>
-        <ol class="fh-mini-steps plain"><li><span>1</span>اطلب رقم جوال العميل المسجّل في Free Hand.</li><li><span>2</span>ابحث وتأكد معه من الاسم وآخر 4 أرقام.</li><li><span>3</span>أدخل رقم الفاتورة والمبلغ المدفوع وعدد الأكياس.</li></ol>
-        <p class="fh-muted-small">تظهر الفاتورة فورًا في «المشتريات» لدى العميل في ${esc(m?.name || 'المول')}، جاهزة لطلب الجمع.</p></section>` +
+        <ol class="fh-mini-steps plain"><li><span>1</span>امسح رمز العميل أو اكتبه. إن لم يكن معه، ابحث برقم جواله المسجّل.</li><li><span>2</span>تأكد معه من اسمه.</li><li><span>3</span>أدخل رقم الفاتورة والمبلغ المدفوع وعدد الأكياس.</li></ol>
+        <p class="fh-muted-small">تظهر الفاتورة فورًا في «المشتريات» لدى العميل في ${esc(m?.name || 'المول')}.</p></section>` +
+      (preparing.length ? UI.callout('hourglass', `${UI.count(preparing.length, 'invoice')} بانتظار تجهيز الأكياس`, `حدّدها جاهزة من ${link('الفواتير المرتبطة', 'go:merchant-pickups')} ليتمكن العميل من طلب جمعها.`, 'warn') : '') +
       UI.section('جهّزها للمندوب', waiting.length ? UI.status(UI.count(waiting.length, 'order'), 'wait') : '') +
-      (waiting.length ? `<div class="fh-list">${waiting.map(o => { const stop = o.stops.find(t => t.store === s.id); const inv = stop.invoices.map(id => V.get('invoices', id)).filter(Boolean); return `<div class="fh-task-row"><span class="fh-icon-tile">${ic('package')}</span><span><strong><bdi dir="ltr">${esc(o.id)}</bdi> ${UI.status('بانتظار المندوب', 'wait')}</strong><small>${inv.map(i => `<bdi dir="ltr">${esc(i.number)}</bdi>`).join('، ')} · ${UI.count(inv.reduce((n, i) => n + i.bags, 0), 'bag')}</small><small class="fh-next-actor">${ic('arrow-left')} التالي: سلّم الأكياس للمندوب عند حضوره</small></span></div>`; }).join('')}</div>`
+      (waiting.length ? `<div class="fh-list">${waiting.map(o => {
+        const stop = o.stops.find(t => t.store === s.id);
+        const inv = stop.invoices.map(id => V.get('invoices', id)).filter(Boolean);
+        return `<section class="a-card fh-stop-card"><div class="fh-row"><strong><bdi dir="ltr">${esc(o.id)}</bdi></strong>${UI.status(stop.handedAt ? 'سلّمتها للمندوب' : 'بانتظار المندوب', stop.handedAt ? 'ok' : 'wait')}</div>
+          <small>${ic('shopping-bag')} ${UI.count(UI.bagsIn(stop), 'bag')} · ${inv.map(i => `<bdi dir="ltr">${esc(i.number)}</bdi>`).join('، ')}</small>
+          ${stop.issue && !stop.issue.resolved ? UI.callout('triangle-alert', 'ملاحظة فريق الجمع: ' + esc(UI.issueTypes[stop.issue.type] || ''), esc(stop.issue.note || 'تواصل مع فريق الجمع.'), 'warn') : ''}
+          ${stop.handedAt ? `<small class="fh-next-actor">${ic('arrow-left')} التالي: فريق الجمع يؤكد الاستلام وعدد الأكياس</small>` : b(ic('hand') + ' سلّمت الأكياس للمندوب', 'fh-store-handover', 'secondary small', `data-id="${esc(o.id)}"`)}</section>`;
+      }).join('')}</div>`
         : `<p class="fh-footnote">${ic('circle-check')}<span>لا طلبات بانتظار الاستلام من متجرك.</span></p>`) +
       `<section class="a-card fh-menu">${F.listButton('الفواتير المرتبطة', 'receipt-text', 'go:merchant-pickups', UI.count(linked.length, 'invoice'))}${F.listButton('ملف المتجر للزوار', 'store', 'go:merchant-profile')}</section>`,
-      s.active ? b(ic('link') + ' ربط فاتورة مدفوعة', 'visit-merchant-start') : '', 'merchant-home', false);
+      s.active ? b(ic('qr-code') + ' ربط فاتورة مدفوعة', 'visit-merchant-start') : '', 'merchant-home', false);
+  };
+  F.actions['fh-store-handover'] = btn => {
+    const s = ownStore();
+    const o = data.orders.find(x => x.id === btn.dataset.id && x.status === 'collecting');
+    const stop = o?.stops.find(t => t.store === s?.id && !t.done);
+    if (!stop) return;
+    Object.assign(stop, { handedAt: new Date().toISOString(), handedBy: A.session.email });
+    V.save();
+    UI.rerender();
+    F.toast('سُجّل تسليم الأكياس. ينتظر تأكيد فريق الجمع.');
   };
 
   F.views['merchant-register'] = () => {
@@ -622,53 +656,70 @@
     const m = mallOf(s.mall);
     const c = r.candidate;
     const p = r.person;
-    let shopper;
+    // The identifier field stays visible so the cashier can correct it; editing it clears the match below.
+    const idField = r.mode === 'phone'
+      ? UI.field({ name: 'invoice-phone', label: 'رقم جوال العميل المسجّل', value: r.phone, placeholder: '05XXXXXXXX', type: 'tel', attrs: 'dir="ltr" inputmode="numeric" maxlength="10" autocomplete="off"' })
+      : (p || c ? '' : b(ic('scan-qr-code') + ' مسح رمز العميل', 'fh-scan', 'small')) +
+        UI.field({ name: 'invoice-code', label: p || c ? 'رمز العميل' : 'أو اكتب الرمز الظاهر تحت QR', value: r.code, placeholder: 'XXXX-XXXX', attrs: 'dir="ltr" maxlength="12" autocomplete="off" autocapitalize="characters"' });
+    let status = '';
     if (p) {
-      shopper = `<div class="fh-person" role="status">${ic('circle-check')}<div><strong>${esc(shopperName(p))}</strong><small><bdi dir="ltr">${esc(V.mask(p.phone))}</bdi> · ${p.via === 'code' ? 'بالرمز الاحتياطي' : 'برقم الجوال'} · مؤكَّد</small></div><button type="button" class="fh-text-btn" data-action="fh-receipt-reset-person">تغيير</button></div>`;
+      status = `<div class="fh-person" role="status">${ic('circle-check')}<div><strong>${esc(shopperName(p))}</strong><small>${p.via === 'code' ? 'برمز العميل' : `برقم الجوال <bdi dir="ltr">${esc(V.mask(p.phone))}</bdi>`} · مؤكَّد</small></div><button type="button" class="fh-text-btn" data-action="fh-receipt-reset-person">تغيير</button></div>`;
     } else if (c) {
-      shopper = `<div class="fh-match" role="status"><small>${c.via === 'code' ? 'مطابقة الرمز الاحتياطي' : 'وجدنا حسابًا بهذا الرقم'}</small>
-          <div class="fh-match-id"><span class="fh-avatar">${ic('user-round')}</span><div><strong>${esc(shopperName(c))}</strong><bdi dir="ltr">${esc(V.mask(c.phone))}</bdi></div></div>
-          <p>اسأل العميل عن اسمه وآخر 4 أرقام من جواله قبل التأكيد.${c.visitMall && c.visitMall !== s.mall ? ` سيرى الفاتورة عند اختيار ${esc(m?.name || 'المول')} في التطبيق.` : ''}</p>
-          <div class="fh-match-actions">${b(ic('check') + ' نعم، هذا العميل', 'fh-confirm-shopper', 'small')}${b('ليس هو · تعديل الرقم', 'fh-receipt-reset-person', 'secondary small')}</div></div>`;
+      status = `<div class="fh-match" role="status"><small>${c.via === 'code' ? 'رمز صالح لهذا المول' : 'وجدنا حسابًا بهذا الرقم'}</small>
+          <div class="fh-match-id"><span class="fh-avatar">${ic('user-round')}</span><div><strong>${esc(shopperName(c))}</strong>${c.via === 'phone' ? `<bdi dir="ltr">${esc(V.mask(c.phone))}</bdi>` : ''}</div></div>
+          <p>اسأل العميل عن اسمه قبل التأكيد.${c.visitMall && c.visitMall !== s.mall ? ` سيرى الفاتورة عند اختيار ${esc(m?.name || 'المول')} في التطبيق.` : ''}</p>
+          <div class="fh-match-actions">${b(ic('check') + ' نعم، هذا العميل', 'fh-confirm-shopper', 'small')}${b('ليس هو', 'fh-receipt-reset-person', 'secondary small')}</div></div>`;
+    } else if (r.mode === 'phone') {
+      status = b(ic('search') + ' البحث عن العميل', 'fh-lookup', 'secondary small') +
+        (r.miss ? UI.callout('user-x', 'لا يوجد حساب Free Hand بهذا الرقم', `تأكد من الرقم مع العميل. إذا لم يسجّل بعد، يدخل تطبيق Free Hand بالرقم نفسه ويختار ${esc(m?.name || 'المول')}، ثم ابحث مرة أخرى. بيانات الفاتورة محفوظة.`, 'warn') : '');
     } else {
-      shopper = b(ic('search') + ' البحث عن العميل', 'fh-lookup', 'secondary small') +
-        (r.miss ? UI.callout('user-x', 'لا يوجد حساب Free Hand بهذا الرقم', `تأكد من الرقم مع العميل. إذا لم يسجّل بعد، يدخل تطبيق Free Hand بالرقم نفسه ويختار ${esc(m?.name || 'المول')}، ثم ابحث مرة أخرى. بيانات الفاتورة محفوظة.`, 'warn') : '') +
-        (r.codeMode
-          ? UI.field({ name: 'invoice-code', label: 'الرمز الاحتياطي للعميل', value: r.code, placeholder: 'FH-XXXXXXXX', attrs: 'dir="ltr" maxlength="32" autocomplete="off" autocapitalize="characters"', hint: 'يعرضه العميل من شاشة «المشتريات» في هذا المول.' }) + b(ic('qr-code') + ' مطابقة الرمز', 'fh-code-match', 'secondary small')
-          : `<button type="button" class="fh-text-btn" data-action="fh-code-mode">${ic('qr-code')} البحث بالرمز الاحتياطي للعميل</button>`);
+      status = b(ic('shield-check') + ' تحقق من الرمز', 'fh-code-match', 'secondary small');
     }
+    const switcher = p || c ? '' : r.mode === 'phone'
+      ? `<button type="button" class="fh-text-btn" data-action="fh-mode" data-id="code">${ic('qr-code')} العودة إلى رمز العميل</button>`
+      : `<button type="button" class="fh-text-btn" data-action="fh-mode" data-id="phone">${ic('smartphone')} العميل لا يحمل رمزه؟ البحث برقم الجوال</button>`;
+    const shopper = idField + status + switcher;
     return page('ربط فاتورة', cashierSteps(r) +
       `<p class="fh-lead">فاتورة مدفوعة في <strong>${esc(s.name)}</strong>. تظهر للعميل في «المشتريات» في ${esc(m?.name || 'المول')}.</p>` +
       form('visit-invoice',
-        `<fieldset class="fh-form-section"><legend><span class="fh-num">1</span> العميل</legend>` +
-        UI.field({ name: 'invoice-phone', label: 'رقم جوال العميل المسجّل', value: r.phone, placeholder: '05XXXXXXXX', type: 'tel', attrs: 'dir="ltr" inputmode="numeric" maxlength="10" autocomplete="off"' }) +
-        shopper + `</fieldset>` +
+        `<fieldset class="fh-form-section"><legend><span class="fh-num">1</span> العميل</legend>${shopper}</fieldset>` +
         `<fieldset class="fh-form-section"><legend><span class="fh-num">2</span> الفاتورة المدفوعة</legend>` +
         (p ? '' : `<p class="fh-footnote">${ic('info')}<span>يمكنك إدخالها الآن؛ تُربط بعد تأكيد العميل.</span></p>`) +
         `<button type="button" class="fh-text-btn" data-action="visit-invoice-scan">${ic('scan-line')} تعبئة تجريبية من باركود الفاتورة</button>` +
         (r.source === 'scan' ? `<p class="fh-footnote">${ic('info')}<span>بيانات فاتورة عرض. الباركود يحدد الفاتورة فقط، لا العميل. راجعها قبل الربط.</span></p>` : '') +
         UI.field({ name: 'invoice-number', label: 'رقم الفاتورة', value: r.number, placeholder: 'INV-12345', attrs: 'dir="ltr" maxlength="45" autocomplete="off"', hint: 'كما في الفاتورة: أحرف إنجليزية وأرقام وشرطة.' }) +
         `<div class="a-grid2">${UI.field({ name: 'invoice-amount', label: 'المبلغ المدفوع (ر.س)', value: r.amount, placeholder: '0.00', attrs: 'dir="ltr" inputmode="decimal" maxlength="10"' })}${UI.field({ name: 'invoice-bags', label: 'عدد الأكياس', value: r.bags, placeholder: '1', attrs: 'dir="ltr" inputmode="numeric" maxlength="2"' })}</div>` +
+        UI.field({ name: 'invoice-items', label: 'وصف المشتريات' + UI.optional, value: r.items, placeholder: 'مثال: قميص، بنطال', attrs: 'maxlength="80"', hint: 'يظهر للعميل ليميّز الفاتورة.' }) +
+        `<label class="a-check"><input type="checkbox" name="invoice-ready"${r.ready === false ? '' : ' checked'}><span>الأكياس جاهزة للجمع الآن</span></label>` +
         '</fieldset>'),
       submit(ic('link') + (p ? ' ربط الفاتورة بحساب ' + esc(shopperName(p)) : ' ربط الفاتورة بحساب العميل')), 'merchant-register', false);
   };
-  // Editing the number (or code) clears any earlier match; the receipt draft stays.
+  // Editing the number or code clears any earlier match; the receipt draft stays.
   F.$('#phone-app').addEventListener('input', e => {
     const r = V.invoice;
     if (!r || F.s.route !== 'merchant-register') return;
-    if (e.target.name === 'invoice-code') { r.code = e.target.value; return; }
-    if (e.target.name !== 'invoice-phone') return;
-    r.phone = e.target.value;
-    if (r.candidate || r.person || r.miss) {
+    const field = { 'invoice-code': 'code', 'invoice-phone': 'phone', 'invoice-items': 'items' }[e.target.name];
+    if (!field) return;
+    r[field] = e.target.value;
+    if (field !== 'items' && (r.candidate || r.person || r.miss)) {
       Object.assign(r, { candidate: null, person: null, miss: false });
       const caret = e.target.selectionStart;
+      const name = e.target.name;
       UI.rerender();
-      const input = F.$('[name="invoice-phone"]');
+      const input = F.$(`[name="${name}"]`);
       input?.focus();
       input?.setSelectionRange(caret, caret);
     }
   });
+  F.$('#phone-app').addEventListener('change', e => { if (e.target.name === 'invoice-ready' && V.invoice) V.invoice.ready = e.target.checked; });
   F.actions['visit-merchant-start'] = () => { V.invoice = blankInvoice(); F.go('merchant-register'); };
+  F.actions['fh-mode'] = btn => {
+    const r = V.invoice;
+    if (!r) return;
+    Object.assign(r, { mode: btn.dataset.id === 'phone' ? 'phone' : 'code', candidate: null, person: null, miss: false });
+    UI.rerender();
+    F.$(r.mode === 'phone' ? '[name="invoice-phone"]' : '[name="invoice-code"]')?.focus();
+  };
   F.actions['fh-lookup'] = () => {
     const r = V.invoice;
     if (!r) return;
@@ -680,21 +731,74 @@
     UI.rerender();
     F.$(found ? '[data-action="fh-confirm-shopper"]' : '[name="invoice-phone"]')?.focus();
   };
-  F.actions['fh-code-mode'] = () => { V.invoice.codeMode = true; UI.rerender(); F.$('[name="invoice-code"]')?.focus(); };
-  // The fallback code must match a recorded visit to this store's mall; a blank or unknown code never matches.
-  F.actions['fh-code-match'] = () => {
+  // The code must be a live pass issued at this store's mall; blank, unknown, used or expired codes never match.
+  function matchCode(text) {
     const r = V.invoice;
     const s = ownStore();
-    const code = String(F.$('[name="invoice-code"]')?.value ?? r.code).trim().toUpperCase();
-    r.code = code;
-    if (!code) return UI.showErrors({ 'invoice-code': 'أدخل الرمز كما يظهر في تطبيق العميل.' }, { toast: false });
-    const match = Object.entries(data.visits).find(([, v]) => v.mall === s?.mall && String(v.qr || '').toUpperCase() === code);
-    const found = match && findShopper(match[0]);
-    if (!found) return UI.showErrors({ 'invoice-code': 'الرمز لا يطابق زيارة عميل في هذا المول. تأكد منه أو ابحث برقم الجوال.' }, { toast: false });
-    Object.assign(r, { candidate: { ...found, via: 'code' }, person: null, miss: false, phone: found.phone });
+    if (!r || !s) return;
+    r.code = String(text || '').trim();
+    const result = UI.pass.check(text, s.mall);
+    const found = result.pass && findShopper(result.pass.phone);
+    if (!found) {
+      Object.assign(r, { candidate: null, person: null, mode: 'code' });
+      UI.rerender();
+      return UI.showErrors({ 'invoice-code': r.code ? UI.passErrors[result.error || 'unknown'] : 'امسح الرمز أو اكتبه كما يظهر في تطبيق العميل.' }, { toast: false });
+    }
+    Object.assign(r, { mode: 'code', candidate: { ...found, via: 'code', code: result.pass.code }, person: null, miss: false, code: UI.pass.format(result.pass.code) });
     UI.rerender();
     F.$('[data-action="fh-confirm-shopper"]')?.focus();
+  }
+  F.actions['fh-code-match'] = () => matchCode(F.$('[name="invoice-code"]')?.value ?? V.invoice?.code);
+
+  /* Scanner: camera (when the browser allows it) or a saved image of the code. Uses the built-in
+     BarcodeDetector where available, otherwise jsQR, loaded only now. */
+  const scan = { stream: null, timer: 0, detector: null };
+  const stopScan = () => { clearTimeout(scan.timer); scan.stream?.getTracks().forEach(t => t.stop()); scan.stream = null; };
+  async function decode(source, w, h) {
+    if ('BarcodeDetector' in window) {
+      try { scan.detector ||= new window.BarcodeDetector({ formats: ['qr_code'] }); const hit = (await scan.detector.detect(source))[0]; if (hit) return hit.rawValue; } catch {}
+    }
+    await UI.loadScript('assets/jsQR.min.js');
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(source, 0, 0, w, h);
+    return window.jsQR?.(ctx.getImageData(0, 0, w, h).data, w, h)?.data || null;
+  }
+  F.actions['fh-scan'] = async () => {
+    F.sheet('مسح رمز العميل', `<div class="fh-scan"><video id="fh-scan-video" playsinline muted aria-label="معاينة الكاميرا"></video>
+      <p id="fh-scan-status" class="fh-scan-status" role="status">جارٍ تشغيل الكاميرا…</p>
+      <label class="fh-scan-file a-button secondary small">${ic('image')}<span>اختيار صورة الرمز</span><input type="file" accept="image/*" id="fh-scan-file"></label></div>`,
+      b('إغلاق', 'fh-scan-close', 'secondary'));
+    const status = msg => { const el = document.getElementById('fh-scan-status'); if (el) el.textContent = msg; };
+    const found = text => { stopScan(); F.closeSheet(); matchCode(text); };
+    document.getElementById('fh-scan-file')?.addEventListener('change', async e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      status('جارٍ قراءة الصورة…');
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      try { await img.decode(); const text = await decode(img, img.naturalWidth, img.naturalHeight); if (text) return found(text); } catch {}
+      finally { URL.revokeObjectURL(img.src); }
+      status('لم نجد رمز QR في الصورة. جرّب صورة أوضح أو اكتب الرمز يدويًا.');
+    });
+    if (!navigator.mediaDevices?.getUserMedia) return status('الكاميرا غير متاحة في هذا المتصفح. اختر صورة الرمز أو اكتبه يدويًا.');
+    try { scan.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }); }
+    catch { return status('لم يُسمح باستخدام الكاميرا. اختر صورة الرمز أو اكتبه يدويًا.'); }
+    const video = document.getElementById('fh-scan-video');
+    if (!video) return stopScan();
+    video.srcObject = scan.stream;
+    await video.play().catch(() => {});
+    status('وجّه الكاميرا نحو رمز العميل.');
+    const tick = async () => {
+      if (!document.getElementById('fh-scan-video') || !scan.stream) return stopScan();
+      if (video.readyState >= 2 && video.videoWidth) { const text = await decode(video, video.videoWidth, video.videoHeight).catch(() => null); if (text) return found(text); }
+      scan.timer = setTimeout(tick, 300);
+    };
+    tick();
   };
+  F.actions['fh-scan-close'] = () => { stopScan(); F.closeSheet(); };
+
   F.actions['fh-confirm-shopper'] = () => {
     const r = V.invoice;
     if (!r?.candidate) return;
@@ -704,9 +808,9 @@
     F.$(r.number ? '#app-cta [type=submit]' : '[name="invoice-number"]')?.focus();
   };
   F.actions['fh-receipt-reset-person'] = () => {
-    Object.assign(V.invoice, { candidate: null, person: null, miss: false, codeMode: false, code: '' });
+    Object.assign(V.invoice, { candidate: null, person: null, miss: false, code: '' });
     UI.rerender();
-    const input = F.$('[name="invoice-phone"]');
+    const input = F.$(V.invoice.mode === 'phone' ? '[name="invoice-phone"]' : '[name="invoice-code"]');
     input?.focus();
     input?.select();
   };
@@ -727,20 +831,30 @@
     const amountText = UI.latin(String(d['invoice-amount'] || '').trim()).replace(/[٫,]/g, '.');
     const bagsText = UI.latin(String(d['invoice-bags'] || '').trim());
     const errors = {};
-    if (!r.person) errors['invoice-phone'] = r.candidate ? 'أكّد اسم العميل أولًا: «نعم، هذا العميل».' : 'ابحث عن العميل وأكّد اسمه قبل الربط.';
-    else if (r.person.phone !== F.digits(d['invoice-phone'])) { r.person = null; errors['invoice-phone'] = 'تغيّر الرقم بعد التأكيد. ابحث مرة أخرى.'; }
+    const who = r.mode === 'phone' ? 'invoice-phone' : 'invoice-code';
+    if (!r.person) errors[who] = r.candidate ? 'أكّد اسم العميل أولًا: «نعم، هذا العميل».' : 'عرّف العميل وأكّد اسمه قبل الربط.';
+    // A confirmed match is cleared as soon as the number or code is edited, so the state is current here.
+    else if (r.person.via === 'code') { const again = UI.pass.check(r.person.code, s.mall); if (again.error) { r.person = null; errors[who] = UI.passErrors[again.error]; } }
     if (!/^[A-Za-z0-9][A-Za-z0-9\-\/]{2,44}$/.test(number)) errors['invoice-number'] = 'من 3 إلى 45 خانة: أحرف إنجليزية وأرقام وشرطة.';
     else if (data.invoices.some(i => i.store === s.id && i.number.toUpperCase() === number.toUpperCase())) errors['invoice-number'] = 'هذه الفاتورة مربوطة مسبقًا في متجرك.';
     if (!/^\d{1,6}(\.\d{1,2})?$/.test(amountText) || Number(amountText) <= 0 || Number(amountText) > 100000) errors['invoice-amount'] = 'مبلغ بين 0.01 و100,000، بخانتين عشريتين كحد أقصى.';
     if (!/^\d{1,2}$/.test(bagsText) || Number(bagsText) < 1 || Number(bagsText) > 25) errors['invoice-bags'] = 'من 1 إلى 25.';
-    if (Object.keys(errors).length) { if (!r.person && !r.candidate) UI.rerender(); return UI.showErrors(errors); }
+    if (Object.keys(errors).length) {
+      if (!r.person && !r.candidate) UI.rerender();
+      UI.showErrors(errors);
+      if (r.candidate && !r.person) F.$('[data-action="fh-confirm-shopper"]')?.focus();
+      return;
+    }
     linking = true;
     try {
       await UI.busy('جارٍ الربط…', async () => {
         await UI.wait(350);
+        const ready = !!d['invoice-ready'];
         const invoice = { id: V.uid('invoice'), mall: s.mall, store: s.id, phone: r.person.phone, number, amount: Math.round(Number(amountText) * 100) / 100, bags: Number(bagsText),
+          items: String(d['invoice-items'] || '').trim().slice(0, 80), ready, readyAt: ready ? new Date().toISOString() : null,
           source: r.source, via: r.person.via, linkedBy: A.session.email, linkedAt: new Date().toISOString(), order: null };
         data.invoices.push(invoice);
+        if (r.person.via === 'code') UI.pass.consume(r.person.code); // single use: no replay of a captured code
         V.save();
         V.invoice = blankInvoice();
         F.s.linkedInvoice = invoice.id;
@@ -755,8 +869,8 @@
     if (!i || i.store !== s?.id) return F.views['merchant-home']();
     const who = findShopper(i.phone);
     return page('تم ربط الفاتورة', `<section class="fh-success" role="status"><span class="fh-success-check">${ic('check')}</span><div><strong>رُبطت الفاتورة بحساب العميل</strong><small>تظهر الآن في «المشتريات» لديه في ${esc(mallOf(i.mall)?.name || 'المول')}.</small></div></section>` +
-      `<section class="a-card fh-review-block">${UI.line('إلى', esc(who ? shopperName(who) : 'العميل') + ` · <bdi dir="ltr">${esc(V.mask(i.phone))}</bdi>`)}${UI.line('المول', esc(mallOf(i.mall)?.name || ''))}${UI.line('رقم الفاتورة', UI.ltr(i.number))}${UI.line('المبلغ المدفوع للمتجر', UI.cash(i.amount))}${UI.line('الأكياس', UI.count(i.bags, 'bag'))}</section>` +
-      UI.callout('package', 'التالي', 'احتفظ بالأكياس جاهزة. عندما يطلب العميل الجمع، يظهر الطلب في «جهّزها للمندوب».'),
+      `<section class="a-card fh-review-block">${UI.line('إلى', esc(who ? shopperName(who) : 'العميل') + ` · <bdi dir="ltr">${esc(V.mask(i.phone))}</bdi>`)}${UI.line('المول', esc(mallOf(i.mall)?.name || ''))}${UI.line('رقم الفاتورة', UI.ltr(i.number))}${UI.line('المبلغ المدفوع للمتجر', UI.cash(i.amount))}${UI.line('الأكياس', UI.count(i.bags, 'bag') + ' · ' + (UI.isReady(i) ? 'جاهزة للجمع' : 'قيد التجهيز'))}${i.items ? UI.line('الوصف', esc(i.items)) : ''}</section>` +
+      UI.callout('package', 'التالي', UI.isReady(i) ? 'احتفظ بالأكياس جاهزة. عندما يطلب العميل الجمع، يظهر الطلب في «جهّزها للمندوب».' : 'حدّد الأكياس جاهزة من «الفواتير المرتبطة» عند انتهاء تجهيزها.'),
       b(ic('plus') + ' ربط فاتورة أخرى', 'visit-merchant-start') + b('الفواتير المرتبطة', 'go:merchant-pickups', 'secondary'), 'merchant-register', false);
   };
   F.views['merchant-pickups'] = () => {
@@ -766,25 +880,42 @@
     return page('الفواتير المرتبطة', invoices.length ? `<div class="fh-list">${invoices.map(i => {
       const o = data.orders.find(x => x.id === i.order);
       const stop = o?.stops.find(t => t.store === s.id);
-      const [label, tone, next] = stop?.done ? ['استلمها المندوب', 'ok', ''] : o ? ['بانتظار المندوب', 'wait', 'سلّم الأكياس للمندوب'] : ['محفوظة للعميل', 'muted', 'العميل يطلب الجمع من التطبيق'];
-      return `<div class="fh-task-row"><span class="fh-icon-tile">${ic('receipt-text')}</span><span><strong>فاتورة <bdi dir="ltr">${esc(i.number)}</bdi> ${UI.status(label, tone)}</strong><small><bdi dir="ltr">${esc(V.mask(i.phone))}</bdi> · ${UI.cash(i.amount)} · ${UI.count(i.bags, 'bag')}${o ? ` · <bdi dir="ltr">${esc(o.id)}</bdi>` : ''}${i.source === 'demo' ? ' · تجريبية' : ''}</small>${next ? `<small class="fh-next-actor">${ic('arrow-left')} التالي: ${next}</small>` : ''}</span></div>`;
-    }).join('')}</div>` : UI.empty('receipt-text', 'لا فواتير مرتبطة', 'اربط فاتورة مدفوعة برقم جوال العميل لتظهر هنا.'),
+      const [label, tone, next] = stop?.done ? ['استلمها المندوب', 'ok', ''] : o ? ['بانتظار المندوب', 'wait', 'سلّم الأكياس للمندوب'] : !UI.isReady(i) ? ['قيد التجهيز', 'wait', 'جهّز الأكياس وحدّدها جاهزة'] : ['محفوظة للعميل', 'muted', 'العميل يطلب الجمع من التطبيق'];
+      return `<div class="fh-task-row"><span class="fh-icon-tile">${ic('receipt-text')}</span><span><strong>فاتورة <bdi dir="ltr">${esc(i.number)}</bdi> ${UI.status(label, tone)}</strong><small><bdi dir="ltr">${esc(V.mask(i.phone))}</bdi> · ${UI.cash(i.amount)} · ${UI.count(i.bags, 'bag')}${o ? ` · <bdi dir="ltr">${esc(o.id)}</bdi>` : ''}${i.source === 'demo' ? ' · تجريبية' : ''}</small>${i.items ? `<small>${esc(i.items)}</small>` : ''}${next ? `<small class="fh-next-actor">${ic('arrow-left')} التالي: ${next}</small>` : ''}
+        ${!o && !UI.isReady(i) ? b(ic('package-check') + ' الأكياس جاهزة', 'fh-receipt-ready', 'secondary small', `data-id="${esc(i.id)}"`) : ''}</span></div>`;
+    }).join('')}</div>` : UI.empty('receipt-text', 'لا فواتير مرتبطة', 'اربط فاتورة مدفوعة برمز العميل أو رقم جواله لتظهر هنا.'),
       b(ic('plus') + ' ربط فاتورة مدفوعة', 'visit-merchant-start'), 'merchant-home');
   };
+  F.actions['fh-receipt-ready'] = btn => {
+    const i = data.invoices.find(x => x.id === btn.dataset.id && x.store === ownStore()?.id && !x.order);
+    if (!i) return;
+    Object.assign(i, { ready: true, readyAt: new Date().toISOString() });
+    V.save();
+    UI.rerender();
+    F.toast('الأكياس جاهزة. يستطيع العميل طلب جمعها الآن.');
+  };
 
-  /* ---------- Operations team and delivery partner ---------- */
-  // Operations accounts see their own mall; the delivery partner serves every mall in the prototype.
+  /* ---------- Operations team and delivery partner ----------
+     Operations accounts see their own mall; the delivery partner serves every mall in the prototype.
+     Bag custody: store hands over (store screen) → collector confirms the count (here) → car or
+     carrier delivery → delivered. Issues and failed deliveries are recorded, not hidden. */
   const visibleOrders = () => data.orders.filter(o => A.session?.role !== 'operations' || o.mall === (A.session.org || 'front'));
   const taskOrder = () => visibleOrders().find(o => o.id === F.s.visitDeliveryOrder);
   const isOps = () => A.session?.role === 'operations';
+  const staffName = () => A.session?.name || UI.roleNames[A.session?.role] || 'الفريق';
   F.views['delivery-home'] = F.views['ops-home'] = () => {
     const orders = visibleOrders().slice().reverse();
-    const active = orders.filter(o => o.status !== 'delivered');
-    const done = orders.filter(o => o.status === 'delivered');
+    const closed = orders.filter(o => UI.isClosed(o));
+    const collecting = orders.filter(o => o.status === 'collecting');
+    const onTheWay = orders.filter(o => ['ready', 'shipped'].includes(o.status));
+    const list = (title, items, tone) => items.length ? UI.section(title, UI.status(UI.count(items.length, 'order'), tone)) + `<div class="fh-list">${items.map(o => orderCard(o, 'visit-delivery-order')).join('')}</div>` : '';
+    // Collection staff start with pickups; delivery staff start with handovers to shoppers.
+    const sections = isOps()
+      ? list('بحاجة إلى استلام من المتاجر', collecting, 'wait') + list('في الطريق إلى العميل', onTheWay, 'info')
+      : list('جاهزة للتسليم', onTheWay, 'wait') + list('قيد الجمع من المتاجر', collecting, 'info');
     const scope = isOps() ? 'طلبات ' + esc(mallOf(A.session.org || 'front')?.name || 'المول') : 'طلبات كل المولات المشاركة';
-    return page(isOps() ? 'مهام الجمع' : 'مهام التوصيل', `<p class="fh-lead">${scope}. افتح الطلب لتسجيل الاستلام من المتاجر ثم التسليم.</p>` +
-      (orders.length ? (active.length ? UI.section('بحاجة إلى إجراء', UI.status(UI.count(active.length, 'order'), 'wait')) + `<div class="fh-list">${active.map(o => orderCard(o, 'visit-delivery-order')).join('')}</div>` : UI.callout('circle-check', 'لا مهام جارية', 'كل الطلبات مكتملة.')) +
-        (done.length ? UI.section('مكتملة') + `<div class="fh-list">${done.map(o => orderCard(o, 'visit-delivery-order')).join('')}</div>` : '')
+    return page(isOps() ? 'مهام الجمع' : 'مهام التوصيل', `<p class="fh-lead">${scope}.</p>` +
+      (orders.length ? (sections || UI.callout('circle-check', 'لا مهام جارية', 'كل الطلبات مكتملة.')) + (closed.length ? UI.section('مكتملة أو ملغاة') + `<div class="fh-list">${closed.map(o => orderCard(o, 'visit-delivery-order')).join('')}</div>` : '')
         : UI.empty('route', 'لا مهام بعد', 'تظهر المهمة بعد دفع المتسوّق وتأكيد طلب الجمع.')),
       '', isOps() ? 'ops-home' : 'delivery-home', false);
   };
@@ -795,37 +926,142 @@
     const all = done === o.stops.length;
     const home = o.destination === 'home';
     const place = o.deliveryPlace;
-    const next = { collecting: all ? (home ? `سلّم الطلب إلى ${esc(o.carrier)}` : 'ابدأ التوصيل إلى سيارة العميل') : `استلم الأكياس من المتاجر (${UI.num(done)} من ${UI.num(o.stops.length)})`, ready: 'سلّم الأكياس للعميل عند سيارته', shipped: 'أكّد تسليم الشحنة للعميل', delivered: 'اكتمل الطلب' }[o.status];
+    const m = mallOf(o.mall);
+    const [label] = UI.staffStatus(o);
+    const closed = UI.isClosed(o);
     const cta = { collecting: home ? `${ic('truck')} تسليم الطلب إلى ${esc(o.carrier)}` : `${ic('car-front')} بدء التوصيل إلى السيارة`, ready: `${ic('package-check')} تأكيد التسليم عند السيارة`, shipped: `${ic('package-check')} تأكيد تسليم الشحنة` }[o.status];
     const destination = home
       ? `${UI.line('شركة التوصيل', esc(o.carrier) + (o.carrierEta ? ' · ' + esc(o.carrierEta) : ''))}${UI.line('العنوان', esc([o.address, o.city].filter(Boolean).join('، ')))}`
       : `${UI.line('مكان السيارة', esc(place ? UI.placeSummary(place) : o.point))}`;
     const notes = o.deliveryNotes || place?.notes;
-    return page('طلب ' + o.id, `<section class="fh-org-head"><small>${esc(mallOf(o.mall)?.name || '')} · <bdi dir="ltr">${esc(o.id)}</bdi></small><h2>${esc(UI.statusTitle(o))}</h2>
-        ${o.status !== 'delivered' ? `<p class="fh-next-actor light">${ic('arrow-left')} التالي: ${next}</p>` : ''}</section>` +
+    const stopCard = stop => {
+      const s = V.get('stores', stop.store);
+      const inv = stop.invoices.map(id => V.get('invoices', id)).filter(Boolean);
+      const issue = stop.issue && !stop.issue.resolved ? stop.issue : null;
+      const [st, tone] = stop.done ? [stop.receivedBags != null && stop.receivedBags < UI.bagsIn(stop) ? 'استُلم مع نقص' : 'تم الاستلام', stop.receivedBags != null && stop.receivedBags < UI.bagsIn(stop) ? 'wait' : 'ok'] : stop.handedAt ? ['سلّمها المتجر · أكّد العدد', 'info'] : ['بانتظار الاستلام', 'wait'];
+      return `<section class="a-card fh-stop-card${stop.done ? ' is-done' : ''}">
+        <div class="fh-row"><strong>${esc(s?.name || 'متجر')}</strong>${UI.status(st, tone)}</div>
+        <small>${ic('map-pin')} ${UI.iso(s?.floor || '')} · ${ic('shopping-bag')} ${UI.count(UI.bagsIn(stop), 'bag')}${stop.receivedBags != null ? ` · المستلم: ${UI.num(stop.receivedBags)}` : ''}</small>
+        <p class="fh-muted-small">${inv.map(i => `فاتورة <bdi dir="ltr">${esc(i.number)}</bdi>`).join('، ')}</p>
+        ${issue ? UI.callout('triangle-alert', esc(UI.issueTypes[issue.type] || 'ملاحظة'), esc(issue.note || '') + (issue.by ? `<br><small>سجّلها ${esc(issue.by)}</small>` : ''), 'warn') : ''}
+        ${!stop.done && o.status === 'collecting' ? `<div class="fh-stop-actions">${b(ic('check') + ' تأكيد الاستلام', 'fh-pickup-open', 'secondary small', `data-id="${esc(stop.store)}"`)}${b(ic('flag') + ' إبلاغ', 'fh-issue-open', 'ghost small', `data-id="${esc(stop.store)}"`)}</div>` : ''}
+        ${issue ? b(ic('circle-check') + ' حُلّت الملاحظة', 'fh-issue-resolve', 'ghost small', `data-id="${esc(stop.store)}"`) : ''}</section>`;
+    };
+    let footer = '';
+    if (!closed) {
+      if (o.exception) footer = b(ic('rotate-ccw') + ' إعادة محاولة التسليم', 'fh-exception-clear');
+      else if (o.status === 'collecting') footer = b(all ? cta : `${ic('lock')} أكمل الاستلام من المتاجر أولًا`, 'visit-delivery-next', '', all ? '' : 'disabled');
+      else footer = b(cta, 'fh-confirm-delivery') + b(ic('circle-alert') + ' تعذّر التسليم', 'fh-delivery-fail', 'secondary');
+    }
+    return page('طلب ' + o.id, `<section class="fh-org-head"><small>${esc(m?.name || '')} · <bdi dir="ltr">${esc(o.id)}</bdi></small><h2>${label}</h2>
+        ${closed ? '' : `<p class="fh-next-actor light">${ic('arrow-left')} التالي: ${nextActor(o)}</p>`}</section>` +
+      (o.exception ? UI.callout('circle-alert', 'تعذّر التسليم: ' + esc(UI.failReasons[o.exception.reason] || ''), esc(o.exception.note || '') + `<br><small>المحاولات: ${UI.num(o.attempts || 1)}</small>`, 'warn') : '') +
+      `<section class="a-card fh-assign"><span class="fh-icon-tile">${ic('user-round')}</span><div><small>المكلّف بالمهمة</small><strong>${o.assignee ? esc(o.assignee.name) : 'غير مسندة'}</strong></div>
+        ${closed || o.assignee?.email === A.session?.email ? '' : b(o.assignee ? 'نقلها إليّ' : 'استلام المهمة', 'fh-assign', 'small')}</section>` +
       UI.section('الاستلام من المتاجر', `<span class="fh-muted-small">${UI.num(done)} من ${UI.num(o.stops.length)}</span>`) +
-      `<div class="fh-list">${o.stops.map(stop => { const s = V.get('stores', stop.store); const inv = stop.invoices.map(id => V.get('invoices', id)).filter(Boolean); return `<section class="a-card fh-stop-card${stop.done ? ' is-done' : ''}">
-          <div class="fh-row"><strong>${esc(s?.name || 'متجر')}</strong>${UI.status(stop.done ? 'تم الاستلام' : 'بانتظار الاستلام', stop.done ? 'ok' : 'wait')}</div>
-          <small>${UI.iso(s?.floor || '')} · ${UI.count(inv.reduce((n, i) => n + i.bags, 0), 'bag')}</small>
-          <p class="fh-muted-small">${inv.map(i => `فاتورة <bdi dir="ltr">${esc(i.number)}</bdi>`).join('، ')}</p>
-          ${!stop.done && o.status === 'collecting' ? b(ic('check') + ' تأكيد الاستلام من المتجر', 'visit-stop-pickup', 'secondary small', `data-id="${esc(stop.store)}"`) : ''}</section>`; }).join('')}</div>` +
+      `<div class="fh-list">${o.stops.map(stopCard).join('')}</div>` +
+      `<section class="a-card fh-review-block"><h3>${ic('warehouse')} نقطة التجميع</h3><p>${esc(m?.point || 'نقطة خدمة Free Hand في المول')}</p></section>` +
       `<section class="a-card fh-review-block"><h3>${ic(home ? 'house' : 'car-front')} ${home ? 'التوصيل إلى المنزل' : 'التسليم عند السيارة'}</h3>${destination}${notes ? `<p class="fh-muted-small">${ic('message-square')} ${esc(notes)}</p>` : ''}
         ${o.coordinates ? `<a class="fh-map-link" href="https://www.openstreetmap.org/?mlat=${encodeURIComponent(o.coordinates.lat)}&amp;mlon=${encodeURIComponent(o.coordinates.lng)}#map=18/${encodeURIComponent(o.coordinates.lat)}/${encodeURIComponent(o.coordinates.lng)}" target="_blank" rel="noopener noreferrer">${ic('map-pinned')} فتح نقطة التسليم على الخريطة</a>` : ''}</section>`,
-      o.status === 'delivered' ? '' : b(all ? cta : `${ic('lock')} أكمل الاستلام من المتاجر أولًا`, o.status === 'collecting' ? 'visit-delivery-next' : 'fh-confirm-delivery', '', all ? '' : 'disabled'),
-      isOps() ? 'ops-home' : 'delivery-home');
+      footer, isOps() ? 'ops-home' : 'delivery-home');
+  };
+  const stopOf = id => taskOrder()?.stops.find(s => s.store === id);
+  const assignToMe = o => { o.assignee = { name: staffName(), email: A.session.email, role: A.session.role, at: new Date().toISOString() }; };
+  F.actions['fh-assign'] = () => { const o = taskOrder(); if (!o || UI.isClosed(o)) return; assignToMe(o); V.save(); UI.rerender(); F.toast('أصبحت المهمة مسندة إليك'); };
+
+  // Pickup: the collector confirms how many bags were actually received from the store.
+  F.actions['fh-pickup-open'] = btn => {
+    const stop = stopOf(btn.dataset.id);
+    if (!stop || stop.done) return;
+    const s = V.get('stores', stop.store);
+    F.sheet('تأكيد الاستلام من ' + (s?.name || 'المتجر'), `<p class="fh-sheet-text">المتوقع: ${UI.count(UI.bagsIn(stop), 'bag')}${stop.handedAt ? ' · سجّل المتجر التسليم' : ''}. عُدّ الأكياس قبل التأكيد.</p>` +
+      form('fh-pickup', `<input type="hidden" name="store" value="${esc(stop.store)}">` +
+        UI.field({ name: 'count', label: 'عدد الأكياس المستلمة', value: String(UI.bagsIn(stop)), attrs: 'dir="ltr" inputmode="numeric" maxlength="2"' }) +
+        UI.field({ name: 'note', label: 'ملاحظة' + UI.optional, placeholder: 'مطلوبة إذا اختلف العدد', attrs: 'maxlength="140"' })),
+      submit(ic('check') + ' تأكيد الاستلام') + b('تراجع', 'close-sheet', 'secondary'));
+  };
+  F.forms['fh-pickup'] = d => {
+    const o = taskOrder();
+    const stop = stopOf(d.store);
+    if (!o || !stop || stop.done || o.status !== 'collecting') return;
+    const count = UI.latin(String(d.count || '').trim());
+    const expected = UI.bagsIn(stop);
+    const note = String(d.note || '').trim().slice(0, 140);
+    if (!/^\d{1,2}$/.test(count)) return UI.showErrors({ count: 'أدخل عدد الأكياس (0 إلى 99).' }, { toast: false });
+    const received = Number(count);
+    if (received !== expected && note.length < 3) return UI.showErrors({ note: 'اكتب ملاحظة قصيرة لأن العدد يختلف عن المتوقع.' }, { toast: false });
+    if (!o.assignee) assignToMe(o);
+    if (received === 0) {
+      stop.issue = { type: 'not-ready', note: note || 'لم تُستلم أي أكياس.', at: new Date().toISOString(), by: staffName() };
+      V.save(); F.closeSheet(); UI.rerender();
+      return F.toast('سُجّلت الملاحظة. لم يُؤكد الاستلام.', true);
+    }
+    Object.assign(stop, { receivedBags: received, expectedBags: expected, receivedAt: new Date().toISOString() });
+    if (received < expected) stop.issue = { type: 'missing', note, at: new Date().toISOString(), by: staffName() };
+    F.closeSheet();
+    F.actions['visit-stop-pickup']({ dataset: { id: stop.store } }); // marks the stop collected
+    if (received < expected) F.toast('سُجّل الاستلام مع نقص في الأكياس', true);
+  };
+  F.actions['fh-issue-open'] = btn => {
+    const stop = stopOf(btn.dataset.id);
+    if (!stop) return;
+    F.sheet('إبلاغ عن مشكلة', form('fh-issue', `<input type="hidden" name="store" value="${esc(stop.store)}">` +
+        UI.selectField({ name: 'type', label: 'نوع المشكلة', options: Object.entries(UI.issueTypes), value: 'not-ready' }) +
+        UI.field({ name: 'note', label: 'التفاصيل', placeholder: 'ماذا حدث؟ ومن تواصلت معه؟', attrs: 'maxlength="140"' })),
+      submit('حفظ الملاحظة') + b('تراجع', 'close-sheet', 'secondary'));
+  };
+  F.forms['fh-issue'] = d => {
+    const stop = stopOf(d.store);
+    if (!stop || !UI.issueTypes[d.type]) return;
+    const note = String(d.note || '').trim().slice(0, 140);
+    if (note.length < 3) return UI.showErrors({ note: 'اكتب تفاصيل قصيرة للمشكلة.' }, { toast: false });
+    stop.issue = { type: d.type, note, at: new Date().toISOString(), by: staffName() };
+    V.save(); F.closeSheet(); UI.rerender();
+    F.toast('سُجّلت الملاحظة، وتظهر للمتجر والعميل');
+  };
+  F.actions['fh-issue-resolve'] = btn => {
+    const stop = stopOf(btn.dataset.id);
+    if (!stop?.issue) return;
+    Object.assign(stop.issue, { resolved: true, resolvedAt: new Date().toISOString(), resolvedBy: staffName() });
+    V.save(); UI.rerender();
+  };
+
+  // Delivery: confirm, or record why it failed and retry later.
+  F.actions['fh-confirm-delivery'] = () => {
+    const o = taskOrder();
+    if (!o || !['ready', 'shipped'].includes(o.status) || o.exception) return;
+    F.sheet('تأكيد التسليم؟', `<p class="fh-sheet-text">تأكّد من استلام العميل لطلب <bdi dir="ltr">${esc(o.id)}</bdi> (${UI.count(o.stops.reduce((n, s) => n + (s.receivedBags ?? UI.bagsIn(s)), 0), 'bag')}). لا يمكن التراجع بعد التأكيد.</p>`,
+      b(ic('package-check') + ' نعم، تم التسليم', 'fh-delivery-done') + b('تراجع', 'close-sheet', 'secondary'));
+  };
+  F.actions['fh-delivery-done'] = () => { F.closeSheet(); F.actions['visit-delivery-next'](); };
+  F.actions['fh-delivery-fail'] = () => {
+    const o = taskOrder();
+    if (!o || !['ready', 'shipped'].includes(o.status)) return;
+    F.sheet('تعذّر التسليم', form('fh-fail', UI.selectField({ name: 'reason', label: 'السبب', options: Object.entries(UI.failReasons), value: 'unreachable' }) +
+        UI.field({ name: 'note', label: 'ملاحظة' + UI.optional, placeholder: 'مثال: اتصلت مرتين دون رد', attrs: 'maxlength="140"' })),
+      submit('حفظ وإعادة الجدولة') + b('تراجع', 'close-sheet', 'secondary'));
+  };
+  F.forms['fh-fail'] = d => {
+    const o = taskOrder();
+    if (!o || !['ready', 'shipped'].includes(o.status) || !UI.failReasons[d.reason]) return;
+    o.exception = { reason: d.reason, note: String(d.note || '').trim().slice(0, 140), at: new Date().toISOString(), by: staffName() };
+    o.attempts = (o.attempts || 0) + 1;
+    V.save(); F.closeSheet(); UI.rerender();
+    F.toast('سُجّل تعذّر التسليم، ويرى العميل المطلوب منه');
+  };
+  F.actions['fh-exception-clear'] = () => {
+    const o = taskOrder();
+    if (!o?.exception) return;
+    o.lastException = o.exception;
+    o.exception = null;
+    V.save(); UI.rerender();
+    F.toast('أُعيدت جدولة التسليم');
   };
   const guard = action => { const original = F.actions[action]; F.actions[action] = btn => { if (!taskOrder()) return F.toast('هذا الطلب خارج نطاق حسابك.', true); original(btn); }; };
   guard('visit-stop-pickup');
   guard('visit-delivery-next');
   const openTask = F.actions['visit-delivery-order'];
   F.actions['visit-delivery-order'] = btn => { if (!visibleOrders().some(o => o.id === btn.dataset.id)) return F.toast('هذا الطلب خارج نطاق حسابك.', true); openTask(btn); };
-  F.actions['fh-confirm-delivery'] = () => {
-    const o = taskOrder();
-    if (!o || !['ready', 'shipped'].includes(o.status)) return;
-    F.sheet('تأكيد التسليم؟', `<p class="fh-sheet-text">تأكّد من استلام العميل لطلب <bdi dir="ltr">${esc(o.id)}</bdi> (${UI.count(o.stops.reduce((n, s) => n + s.invoices.map(id => V.get('invoices', id)).reduce((m, i) => m + (i?.bags || 0), 0), 0), 'bag')}). لا يمكن التراجع بعد التأكيد.</p>`,
-      b(ic('package-check') + ' نعم، تم التسليم', 'fh-delivery-done') + b('تراجع', 'close-sheet', 'secondary'));
-  };
-  F.actions['fh-delivery-done'] = () => { F.closeSheet(); F.actions['visit-delivery-next'](); };
 
   /* ---------- Business account ---------- */
   F.views['auth-account'] = () => page('الحساب', `<section class="a-card fh-identity"><span class="fh-avatar big">${ic('user-round')}</span><div><strong>${esc(A.session?.organization || A.session?.name || '')}</strong><small>${esc(UI.roleNames[A.session?.role] || '')}</small><bdi dir="ltr">${esc(A.session?.email || '')}</bdi></div></section>` +
@@ -918,11 +1154,12 @@
       forms: ['visit-mall-store', 'visit-carrier', 'fh-mall-parking', 'join-decision'] },
     mallApplicant: { roles: ['mall'], forms: ['fh-mall-resubmit'] },
     merchant: { roles: ['merchant'], when: approvedStore,
-      actions: ['visit-merchant-start', 'fh-lookup', 'fh-code-mode', 'fh-code-match', 'fh-confirm-shopper', 'fh-receipt-reset-person', 'visit-invoice-scan'],
+      actions: ['visit-merchant-start', 'fh-lookup', 'fh-mode', 'fh-code-match', 'fh-scan', 'fh-confirm-shopper', 'fh-receipt-reset-person', 'visit-invoice-scan', 'fh-store-handover', 'fh-receipt-ready'],
       forms: ['visit-invoice', 'visit-store-profile'] },
-    field: { roles: ['operations', 'delivery'], actions: ['visit-delivery-order', 'visit-stop-pickup', 'visit-delivery-next', 'fh-confirm-delivery', 'fh-delivery-done'] },
+    field: { roles: ['operations', 'delivery'], actions: ['visit-delivery-order', 'visit-stop-pickup', 'visit-delivery-next', 'fh-confirm-delivery', 'fh-delivery-done', 'fh-assign', 'fh-pickup-open', 'fh-issue-open', 'fh-issue-resolve', 'fh-delivery-fail', 'fh-exception-clear'],
+      forms: ['fh-pickup', 'fh-issue', 'fh-fail'] },
     shopper: { roles: ['customer'],
-      actions: ['fh-demo-receipts', 'visit-sample', 'visit-finish', 'visit-select-mall', 'fh-shopper-code', 'fh-edit-name', 'fh-place-new', 'fh-place-edit', 'fh-place-default', 'fh-place-pick', 'fh-place-continue', 'fh-place-delete-confirm', 'fh-carrier', 'fh-method', 'fh-pay-open', 'fh-pay-confirm', 'visit-pay'],
+      actions: ['fh-demo-receipts', 'visit-sample', 'visit-finish', 'visit-select-mall', 'fh-my-code', 'fh-pass-save', 'fh-edit-name', 'fh-toggle-phone', 'fh-place-new', 'fh-place-edit', 'fh-place-default', 'fh-place-pick', 'fh-place-continue', 'fh-place-delete-confirm', 'fh-carrier', 'fh-method', 'fh-pay-open', 'fh-pay-confirm', 'visit-pay', 'fh-cancel-order', 'fh-cancel-confirm'],
       forms: ['fh-place', 'fh-name', 'auth-customer-name'] }
   };
   const refuse = () => F.toast('هذا الإجراء غير متاح لهذا الحساب.', true);
