@@ -1,0 +1,16 @@
+/* Location widgets inherit the original Free Hand phone, typography and cards. */
+.destination-choices{display:grid;gap:12px}
+.location-map-wrap{margin:12px 0}
+.location-map-heading{display:flex;justify-content:space-between;gap:8px;margin-bottom:9px;font-size:12px}
+.location-map-heading span{font-size:11px;color:#61735f}
+#delivery-map{height:245px;width:100%;border-radius:15px;z-index:0;background:#e8eee8;color:#234832;direction:ltr}
+.location-map-wrap>.a-muted{margin:8px 0;font-size:11px}
+.location-map-wrap>.a-button{width:100%}
+.location-privacy{display:block;color:#657264;font-size:10px;line-height:1.8;margin:9px 0}
+.location-message{padding:11px;background:#eff4e9;border-radius:12px;font-size:12px;line-height:1.9;color:#244931}
+.location-confirm{display:flex;align-items:center;gap:6px;padding:9px 0;font-size:12px;color:#265640}
+.delivery-pin{background:none;border:0}
+.delivery-pin span{display:block;width:27px;height:27px;border:3px solid white;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#174f38;box-shadow:0 2px 7px #0005}
+.delivery-pin span:after{content:'';position:absolute;width:7px;height:7px;border-radius:50%;background:white;top:7px;left:7px}
+#delivery-map .leaflet-control-attribution{font:9px Arial;white-space:normal}
+#delivery-map .leaflet-control-zoom a{color:#174f38}

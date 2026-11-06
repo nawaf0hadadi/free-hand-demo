@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#123d30"><meta name="description" content="تسوّق من المتاجر المشاركة واجمع مشترياتك في طلب واحد إلى منزلك أو موقف سيارتك.">
+<title>Free Hand | جمع وتوصيل مشتريات المول</title>
+<link rel="icon" type="image/svg+xml" href="assets/free-hand-signature.svg">
+<link rel="stylesheet" href="fonts.css"><link rel="stylesheet" href="app.css"><link rel="stylesheet" href="unified.css"><link rel="stylesheet" href="visit.css?v=original-phone-1">
+<link rel="stylesheet" href="assets/leaflet.css"><link rel="stylesheet" href="location.css?v=original-phone-1"><link rel="stylesheet" href="saved-places.css?v=checkout"><link rel="stylesheet" href="design.css?v=clean"></head>
+<body class="unified-app">
+<div id="studio">
+  <header class="studio-header"><a class="studio-brand" href="#" aria-label="Free Hand"><span class="brand-symbol"><i data-lucide="shopping-bag"></i></span><strong dir="ltr">freehand</strong></a><div class="studio-heading"><span class="studio-kicker">PRODUCT EXPERIENCE / 01</span><h1>تطبيق يبدأ معك، من أول خطوة.</h1></div><span class="studio-demo"><span></span> نموذج تفاعلي للعرض فقط</span><button id="map-toggle" class="studio-icon" aria-label="فتح خريطة الصفحات"><i data-lucide="panel-right"></i></button></header>
+  <div class="studio-layout">
+    <aside id="journey-panel"><div class="panel-title"><span>خريطة التجربة</span><span id="screen-count"></span></div><label class="studio-label" for="role-picker">الواجهة</label><select id="role-picker"><option value="customer">تطبيق العميل</option><option value="merchant">بوابة المتجر</option><option value="operations">تطبيق العمليات</option><option value="delivery">شريك التوصيل</option><option value="mall">إدارة المول</option><option value="admin">إدارة Free Hand</option></select><div id="screen-tree"></div><div class="panel-bottom"><button id="restart-demo"><i data-lucide="rotate-ccw"></i> إعادة الرحلة من البداية</button><p>البيانات والأسعار افتراضية. لا تُرسل رسائل أو تُحصّل مبالغ فعلية.</p></div></aside>
+    <section class="prototype-stage" aria-label="معاينة التطبيق"><div class="stage-toolbar"><div class="view-switch"><button data-view="phone" aria-pressed="true"><i data-lucide="smartphone"></i> جوال</button><button data-view="web" aria-pressed="false"><i data-lucide="monitor"></i> شاشة واسعة</button></div><div class="stage-buttons"><button id="presentation-toggle" aria-label="توسيع العرض"><i data-lucide="maximize-2"></i></button><button id="stage-options" aria-label="خيارات العرض"><i data-lucide="sliders-horizontal"></i></button></div></div>
+      <div id="device" data-view="phone"><div class="device-notch" aria-hidden="true"></div><div id="phone-app"><div id="system-bar"><span dir="ltr">9:41</span><div><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></div></div><div id="app-header"></div><main id="app-screen"></main><div id="app-cta"></div><nav id="app-nav" aria-label="تنقل التطبيق"></nav><div id="app-overlay" hidden></div><div id="app-toast" role="status" aria-live="polite" hidden></div></div></div>
+      <div class="stage-caption"><span id="current-screen-label">شاشة الافتتاح</span><span id="current-screen-id" dir="ltr">LAUNCH</span></div>
+    </section>
+    <aside id="context-panel"><div class="context-title">مسار العرض</div><h2 id="context-heading">من فتح التطبيق<br>إلى أول طلب.</h2><p id="context-description">تجربة متصلة يمكنك استعراضها خطوة بخطوة، أو القفز لأي شاشة من خريطة الصفحات.</p><div class="context-actions"><button id="walkthrough-start"><i data-lucide="play"></i><span>ابدأ من فتح التطبيق</span><i data-lucide="arrow-left"></i></button><button id="sample-shopping"><i data-lucide="shopping-bag"></i><span>جرّب جلسة فيها مشتريات</span><i data-lucide="arrow-left"></i></button><button id="sample-order"><i data-lucide="route"></i><span>جرّب طلبًا قيد التنفيذ</span><i data-lucide="arrow-left"></i></button></div><div class="context-note"><i data-lucide="mouse-pointer-2"></i><p>الأزرار والحقول والقوائم قابلة للتجربة. أدوات التحكم هنا خارج واجهة التطبيق.</p></div><div class="demo-shortcuts"><span>للتجربة</span><p dir="ltr">0500000000</p><p>رمز التحقق والاستلام: <b dir="ltr">1234</b></p></div><label class="studio-label" for="scenario-picker">استعراض حالة</label><select id="scenario-picker"><option value="normal">الحالة المعتادة</option><option value="empty">مشتريات فارغة</option><option value="pending">فاتورة قيد التحقق</option><option value="payment-failed">فشل الدفع</option><option value="collecting">جارٍ الجمع</option><option value="ready">جاهز للاستلام</option><option value="delivered">تم التسليم</option></select><div id="branch-control" hidden><label class="studio-label" for="branch-picker">حساب الفرع في العرض</label><select id="branch-picker"><option value="linen">لين للأزياء</option><option value="step">خطوة للأحذية</option><option value="home">دار المنزل</option></select></div></aside>
+  </div>
+  <footer class="studio-footer"><span>FREE HAND / EXPERIENCE PROTOTYPE</span><span>تصميم تصوري · نوفمبر 2026</span></footer>
+</div>
+<script src="assets/lucide.min.js"></script><script src="app.js"></script><script src="customer.js"></script><script src="partners.js"></script><script src="enterprise.js"></script><script src="studio.js"></script><script src="unified.js"></script><script src="access.js?v=refined"></script><script src="journey.js"></script><script src="visit.js?v=demo-invoices"></script><script src="visit-work.js?v=checkout"></script><script src="mall-joining.js?v=mobile"></script><script src="assets/leaflet.js"></script><script src="address-location.js?v=saved-places-1"></script><script src="saved-places.js?v=checkout-2"></script>
+<script src="design.js?v=payment"></script>
+</body></html>
+
+
+
+
+
+
+
+
+
