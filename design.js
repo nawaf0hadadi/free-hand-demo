@@ -2,7 +2,7 @@
   'use strict';
   const F = window.FH;
   const { Access: A, Visit: V, ic, esc, b, card, field, form, submit, lead, link, empty } = F;
-  const format = new Intl.NumberFormat('ar-SA');
+  const format = new Intl.NumberFormat('ar-SA-u-nu-latn');
   const number = value => format.format(value);
   const steps = [
     ['shopping-bag', 'تسوّق', 'ادفع في المتجر واربط فاتورتك برقم جوالك.'],
@@ -48,8 +48,8 @@
 
   function loginSteps(current) {
     return `<ol class="fh-login-steps" aria-label="خطوات تسجيل الدخول">
-      <li ${current===1?'aria-current="step"':'class="is-done"'}><span>${current===1?'١':ic('check')}</span> رقم الجوال</li>
-      <li ${current===2?'aria-current="step"':''}><span>٢</span> رمز التحقق</li>
+      <li ${current===1?'aria-current="step"':'class="is-done"'}><span>${current===1?'1':ic('check')}</span> رقم الجوال</li>
+      <li ${current===2?'aria-current="step"':''}><span>2</span> رمز التحقق</li>
     </ol>`;
   }
   F.views.login = () => authPage('دخول المتسوق', 'smartphone', 'رقم جوالك',

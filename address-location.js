@@ -23,12 +23,12 @@ let busy=false,message='',showMap=true,map=null,marker=null,pin=null,pendingPin=
 const cache=new Map();
 // Existing sample services become named examples; owner-created carriers are preserved.
 for(const c of data.carriers){if(c.id==='city'&&c.name==='مسار المدينة'){c.name='أرامكس';c.example=true;}if(c.id==='fast'&&c.name==='توصيل الواجهة'){c.name='سمسا';c.example=true;}if(c.id==='garden-carrier'&&c.name==='ناقل الحدائق'){c.name='سبل | SPL';c.example=true;}if(c.example)c.coverage=cities.join('،');}
-if(!data.carriers.some(c=>c.id==='spl-example'))data.carriers.push({id:'spl-example',mall:'front',name:'سبل | SPL',fee:24,eta:'خلال ١–٣ أيام عمل',coverage:cities.join('،'),active:true,example:true});
+if(!data.carriers.some(c=>c.id==='spl-example'))data.carriers.push({id:'spl-example',mall:'front',name:'سبل | SPL',fee:24,eta:'خلال 1–3 أيام عمل',coverage:cities.join('،'),active:true,example:true});
 save();
 function read(){const el=F.$('[data-form="location-address"]');if(!el)return address();const d=Object.fromEntries(new FormData(el));for(const k of ['city','district','street','building','unit','short','notes'])address()[k]=trim(d[k]);address().short=address().short.toUpperCase();return address();}
 function saveAddress(){if(pendingPin)return F.toast('اعتمد النقطة المحددة على الخريطة أولًا.',true),false;const d=read();if(!d.city)return F.toast('اختر المدينة من القائمة.',true),false;
  if(!cities.includes(d.city)&&d.city!==V.checkout.detectedCity)return F.toast('اختر مدينة صحيحة.',true),false;
- if(d.short&&!/^[A-Z]{4}\d{4}$/.test(d.short))return F.toast('العنوان المختصر يتكوّن من ٤ أحرف إنجليزية و٤ أرقام، مثل RRRD1234.',true),false;
+ if(d.short&&!/^[A-Z]{4}\d{4}$/.test(d.short))return F.toast('العنوان المختصر يتكوّن من 4 أحرف إنجليزية و4 أرقام، مثل RRRD1234.',true),false;
  if(!V.checkout.coordinates&&(!d.district||!d.street||!d.building))return F.toast('أكمل الحي والشارع ورقم المبنى، أو حدّد الموقع بالخريطة.',true),false;
  V.checkout.city=d.city;V.checkout.address=composed(d)||'موقع محدد على الخريطة';V.checkout.addressSaved=true;
  if(!chosen())V.checkout.carrier='';return true;
@@ -38,7 +38,7 @@ const locationControls=()=>mapMarkup()+b(busy?'جارٍ طلب موقع الجه
 function parkingFields(){const d=parking(),config=V.mall()?.parkingConfig||{gates:['البوابة أ','البوابة ب','البوابة ج'],areas:['A','B','C','المواقف السطحية','القبو']};
  return card('<h3 class="a-section">وين سيارتك؟</h3><p class="a-muted">اختر نقطة السيارة، أو أدخل البوابة ورقم الموقف.</p>'+locationControls()+
  form('location-parking','<h3 class="a-section">بيانات الموقف</h3>'+F.select('gate','البوابة',[['','اختر البوابة'],...config.gates.map(g=>[g,g]),['other','بوابة أخرى']],d.gate)+(d.gate==='other'?field('otherGate','اسم البوابة',d.otherGate,'مثال: المدخل الشمالي','text','maxlength="60"'):'')+
- '<div class="a-grid2">'+F.select('area','منطقة المواقف · اختياري',[['','اختر المنطقة'],...config.areas.map(a=>[a,a])],d.area)+field('number','رقم الموقف',d.number,'مثال: ١٥ أو B15','text','maxlength="16"')+'</div>'+field('parkingNotes','علامة تساعد المندوب · اختياري',d.notes,'مثال: بجانب المصعد، سيارة بيضاء','text','maxlength="120"')+
+ '<div class="a-grid2">'+F.select('area','منطقة المواقف · اختياري',[['','اختر المنطقة'],...config.areas.map(a=>[a,a])],d.area)+field('number','رقم الموقف',d.number,'مثال: 15 أو B15','text','maxlength="16"')+'</div>'+field('parkingNotes','علامة تساعد المندوب · اختياري',d.notes,'مثال: بجانب المصعد، سيارة بيضاء','text','maxlength="120"')+
  '<button type="submit" class="a-button secondary">حفظ مكان السيارة</button>')+'<p class="a-muted">خيارات البوابات والمناطق تجريبية لهذا النموذج؛ اختر «بوابة أخرى» إذا لم تجدها.</p>');
 }
 function readParking(){const el=F.$('[data-form="location-parking"]');if(!el)return parking();const d=new FormData(el);for(const k of ['gate','area','number','otherGate'])parking()[k]=trim(d.get(k),60);parking().notes=trim(d.get('parkingNotes'));return parking();}
@@ -81,7 +81,7 @@ async function reverse(lat,lng,accuracy,token){
  if(V.checkout.addressSaved){message='نقطة التسليم محفوظة، وتم الاحتفاظ بالعنوان الذي أكّدته.';return;}
  const d=read();
  setCoordinates({lat,lng,accuracy:accuracy||null});pin={lat,lng};pendingPin=false;
- if(city&&!V.checkout.cityManuallyChosen)d.city=city;V.checkout.detectedCity=city;d.district||=p.district||p.locality||p.suburb||'';d.street||=p.street||'';d.building||=p.housenumber||'';
+ if(city&&!V.checkout.cityManuallyChosen)d.city=city;V.checkout.detectedCity=city;d.district||=p.district||p.locality||p.suburb||'';d.street||=p.street||(p.type==='street'?p.name:'')||'';d.building||=p.housenumber||'';
  V.checkout.addressSaved=false;V.checkout.carrier='';showMap=true;message='تم تحديد النقطة وتعبئة التفاصيل المتاحة. راجع المدينة والعنوان وأكمل الناقص؛ أسماء الشوارع قد تظهر بالإنجليزية.';
 }
 async function locatePoint(lat,lng,accuracy){const token=++sequence;const mode=V.checkout.destination;setCoordinates({lat,lng,accuracy:accuracy||null});pin={lat,lng};pendingPin=false;busy=false;V.checkout.addressSaved=false;V.checkout.parkingSaved=false;message='تم حفظ النقطة. يمكنك إكمال البيانات والمتابعة الآن؛ نجلب تفاصيل العنوان إن توفرت.';F.render();

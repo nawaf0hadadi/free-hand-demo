@@ -74,7 +74,7 @@ F.forms['place-save']=()=>{const e=editor();if(!e||!owner())return;capture();con
 F.actions['places-cancel']=()=>{const e=editor();if(e)V.checkout=clone(e.prior);F.s.placeEditor=null;L.cancelEditor();F.go(flow().purpose==='checkout'?'destination':'saved-places',{replace:true});};
 const back=F.actions.back;F.actions.back=()=>F.s.route==='place-editor'?F.actions['places-cancel']():back();
 F.actions['places-select']=btn=>{if(!selectPlace(btn.dataset.id))return;if(flow().purpose==='checkout')proceed();else{F.go(flow().returnTo||'stores',{replace:true});F.toast('التسليم إلى '+selected().title);}};
-function proceed(){const p=selected();if(!p)return F.toast('اختر مكانًا محفوظًا أو أضف مكانًا أولًا.',true);if(V.checkout.savedPlaceId!==p.id)apply(p);F.go(p.type==='home'?'shipping-choice':'review');}
+function proceed(){const p=selected();if(!p)return F.toast('اختر مكانًا محفوظًا أو أضف مكانًا أولًا.',true);if(V.checkout.savedPlaceId!==p.id)apply(p);F.go('review');}
 F.actions['places-continue']=()=>{if(flow().purpose==='checkout')return proceed();if(!selected())return;F.go(flow().returnTo||'stores',{replace:true});};
 F.actions['places-change']=()=>openPlaces('checkout','bags');
 F.actions['places-open']=()=>openPlaces('manage',F.s.route==='account'?'account':F.s.route==='bags'?'bags':'stores');
@@ -139,7 +139,7 @@ F.actions['visit-pay']=()=>{
  F.toast('تم الدفع التجريبي وتأكيد طلب الجمع');
 };
 function trackingView(){const o=data.orders.filter(o=>o.phone===A.session?.phone).find(o=>o.id===F.s.visitOrderId)||data.orders.filter(o=>o.phone===A.session?.phone).at(-1);if(!o)return F.views.orders();const p=o.deliveryPlace||{title:o.destination==='home'?'المنزل':'موقف السيارة',type:o.destination,city:o.city,address:o.address,coordinates:o.coordinates,gate:o.point};const delivered=o.status==='delivered',inTransit=['ready','shipped'].includes(o.status),index=delivered?3:inTransit?2:1,done=o.stops.filter(s=>s.done).length;
- const count=new Intl.NumberFormat('ar-SA');
+ const count=new Intl.NumberFormat('ar-SA-u-nu-latn');
  const method=paymentMethod(o.paymentMethod);
  const confirmation=method?'تم دفع '+cash(o.fee)+' تجريبيًا عبر '+method.label:'حُفظ مكان التسليم وطلب الجمع';
  const stages=[['receipt-check','تم تأكيد الطلب',confirmation],['shopping-bag','نجمع مشترياتك',`المتاجر التي استلمنا منها: ${count.format(done)} من ${count.format(o.stops.length)}`],[p.type==='home'?'truck':'car-front',p.type==='home'?'في الطريق إلى المنزل':'في الطريق إلى سيارتك',inTransit||delivered?'توجّه المندوب إلى مكان التسليم':'بعد اكتمال جمع المشتريات'],['package-check','تم التسليم',delivered?'أكّد المندوب التسليم.':'يظهر التأكيد بعد تسجيل تسليم الطلب']];
@@ -162,8 +162,7 @@ F.render=animate=>{
    F.s.route='destination';
   }else if(paymentReview){
    if(!items().length)F.s.route='bags';
-   else if(p.type==='home'&&!carrier())F.s.route='shipping-choice';
-  }
+   }
  }
  render(animate);
 };

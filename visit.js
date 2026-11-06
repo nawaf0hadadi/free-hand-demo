@@ -5,7 +5,7 @@ const key='fh-visit-showcase-v1';
 const fixtures={
   malls:[
     {id:'front',name:'مول الواجهة',city:'الرياض',point:'البوابة أ · الدور الأرضي',status:'approved',company:'الواجهة للتشغيل',email:'mall@example.com'},
-    {id:'garden',name:'مول الحدائق',city:'الرياض',point:'بوابة ٢ · مكتب الخدمات',status:'approved',company:'الحدائق للتشغيل'}
+    {id:'garden',name:'مول الحدائق',city:'الرياض',point:'بوابة 2 · مكتب الخدمات',status:'approved',company:'الحدائق للتشغيل'}
   ],
   stores:[
     {id:'linen',mall:'front',name:'لين للأزياء',category:'أزياء',floor:'الأرضي · A12',active:true,email:'store@example.com',amount:250},
@@ -15,9 +15,9 @@ const fixtures={
     {id:'green',mall:'garden',name:'ركن الهدايا',category:'هدايا',floor:'الأرضي · A02',active:true,amount:95}
   ],
   carriers:[
-    {id:'city',mall:'front',name:'مسار المدينة',fee:19,coverage:'الرياض',eta:'خلال ٢٤ ساعة',active:true},
-    {id:'fast',mall:'front',name:'توصيل الواجهة',fee:26,coverage:'الرياض، الدرعية',eta:'خلال ٤ ساعات',active:true},
-    {id:'garden-carrier',mall:'garden',name:'ناقل الحدائق',fee:20,coverage:'الرياض',eta:'خلال ٢٤ ساعة',active:true}
+    {id:'city',mall:'front',name:'مسار المدينة',fee:19,coverage:'الرياض',eta:'خلال 24 ساعة',active:true},
+    {id:'fast',mall:'front',name:'توصيل الواجهة',fee:26,coverage:'الرياض، الدرعية',eta:'خلال 4 ساعات',active:true},
+    {id:'garden-carrier',mall:'garden',name:'ناقل الحدائق',fee:20,coverage:'الرياض',eta:'خلال 24 ساعة',active:true}
   ],
   visits:{},invoices:[],orders:[]
 };
@@ -32,7 +32,7 @@ const V=F.Visit={data,save,fee:12,category:'الكل',search:'',
 const get=(kind,id)=>data[kind].find(x=>x.id===id);
 const mall=()=>get('malls',F.s.unifiedMallId);
 const stores=id=>data.stores.filter(s=>s.mall===id);
-const cash=n=>new Intl.NumberFormat('ar-SA',{maximumFractionDigits:2}).format(n)+' ر.س';
+const cash=n=>new Intl.NumberFormat('ar-SA-u-nu-latn',{maximumFractionDigits:2}).format(n)+' ر.س';
 const line=(label,value)=>row('<span>'+label+'</span>','<strong>'+value+'</strong>');
 const idButton=(label,action,id,variant='secondary small')=>b(label,action,variant,'data-id="'+esc(id)+'"');
 const page=(title,html,footer='',nav=F.s.route,back=true)=>({title,header:head(title,back),html:'<div class="a-pad a-stack visit-page">'+html+'</div>',footer,nav});
@@ -118,7 +118,7 @@ const sampleInvoices=()=>{
     data.invoices.push({id:uid('invoice'),mall:m.id,store:s.id,phone:customer(),number:'DEMO-'+s.id.toUpperCase(),
       amount:s.amount,bags:1,source:'demo',order:null});
   }
-  save();F.render();F.toast('تمت إضافة فواتير العرض');
+  save();F.render();F.toast('أضفنا فواتير تجريبية مدفوعة إلى مشترياتك');
 };
 F.actions['visit-sample']=sampleInvoices;
 F.views.bags=()=>{
@@ -161,8 +161,8 @@ F.views.destination=()=>{
   return page('الاستلام والتوصيل',lead('وين تستلم مشترياتك؟','من '+new Set(invoiceItems().map(i=>i.store)).size+' متاجر · قيمة الفواتير مدفوعة.')+
     select('التوصيل إلى مواقف السيارة','visit-destination','parking',!home,'car-front','نوصل مشترياتك لسيارتك عند المواقف المحددة',cash(V.fee))+
     select('التوصيل إلى المنزل','visit-destination','home',home,'house','اختر عنوانك وشركة التوصيل')+
-    (!home?form('visit-parking',field('parking','البوابة ورقم الموقف',V.checkout.parking||'','مثال: بوابة ٢، منطقة B، موقف ١٥','text','maxlength="100"')+'<button class="a-button secondary small" type="submit">حفظ موقع السيارة</button>'): '')+(home?form('visit-address',field('city','المدينة',V.checkout.city,'الرياض')+
-      field('address','الحي والشارع ورقم المبنى',V.checkout.address,'مثال: حي الربيع، مبنى ١٢','text','maxlength="160"')+
+    (!home?form('visit-parking',field('parking','البوابة ورقم الموقف',V.checkout.parking||'','مثال: بوابة 2، منطقة B، موقف 15','text','maxlength="100"')+'<button class="a-button secondary small" type="submit">حفظ موقع السيارة</button>'): '')+(home?form('visit-address',field('city','المدينة',V.checkout.city,'الرياض')+
+      field('address','الحي والشارع ورقم المبنى',V.checkout.address,'مثال: حي الربيع، مبنى 12','text','maxlength="160"')+
       '<button class="a-button secondary small" type="submit">عرض خيارات التوصيل</button>')+
       (V.checkout.address?(carriers.length?carriers.map(c=>select(esc(c.name),'visit-carrier',c.id,c.id===V.checkout.carrier,'truck',esc(c.eta),cash(c.fee))).join('')
       :note('ما فيه شركة مفعلة تغطي هذه المدينة. غيّر المدينة أو اختر التوصيل إلى مواقف السيارة.','warn')):''):''),

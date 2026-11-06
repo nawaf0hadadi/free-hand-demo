@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" role="img" aria-label="Free Hand">
+  <g fill="#182e25">
+    <rect x="13" y="11" width="6.5" height="26" rx="3.25"/>
+    <rect x="13" y="11" width="22" height="6.5" rx="3.25"/>
+    <rect x="13" y="21.25" width="13" height="6.5" rx="3.25"/>
+    <circle cx="33.25" cy="24.5" r="3.75"/>
+    <text x="52" y="33" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="27" font-weight="700" letter-spacing="-0.6">Free <tspan font-weight="500">Hand</tspan></text>
+  </g>
+</svg>

@@ -3,12 +3,12 @@
 const F=window.FH,A=F.Access,V=F.Visit;
 const {data,save,get,stores,cash,line,idButton,page,hero,select,textInput,uid,mask,stage,storeLogo}=V;
 const {ic,b,card,lead,field,form,submit,note,tag,link,esc,empty,row}=F;
-const roles=['mall','merchant','delivery','admin'];
+const roles=['mall','merchant','operations','delivery','admin'];
 const demoPassword='Demo1234!';
 const invalid=msg=>F.toast(msg,true);
 const addressOK=value=>A.validEmail(value);
 const fieldEmail=(name,label,value='')=>field(name,label,value,'name@example.com','email','dir="ltr" maxlength="120"');
-const fieldPass=(name,label,mode='current-password')=>field(name,label,'','٨ أحرف على الأقل','password','autocomplete="'+mode+'" maxlength="128"');
+const fieldPass=(name,label,mode='current-password')=>field(name,label,'','8 أحرف على الأقل','password','autocomplete="'+mode+'" maxlength="128"');
 const fieldFile=(name,label,accept)=>`<label class="a-field">${label}<input type="file" name="${name}" accept="${accept}"></label>`;
 const textarea=(name,label,value,max)=>`<label class="a-field">${label}<textarea name="${name}" maxlength="${max}">${esc(value||'')}</textarea></label>`;
 const email=value=>textInput(value,120).toLowerCase();
@@ -21,7 +21,6 @@ const publicWork=()=>page('حساب العمل',lead('أهلًا بعودتك.',
  '<p class="work-signup">ليس لديك حساب عمل؟ '+link('إنشاء حساب','work-join')+'</p>',submit('تسجيل الدخول'),null);
 F.views['auth-role-login']=publicWork;
 F.views['auth-entry']=()=>page('Free Hand',hero('FREE HAND','تسوّق براحتك.<br>ونجمعها لك.','مشترياتك من محلات المول في طلب جمع واحد.','shopping-bag')+
-  `<img class="visit-welcome-art" src="assets/onboarding-shopping.png" alt="">`+
   select('أنا متسوق','go:login','',false,'shopping-bag','دخول برقم الجوال')+
   select('دخول حساب العمل','go:auth-role-login','',false,'building-2','المول، المتجر، المندوب أو مالك المنصة')+
   '<p class="visit-caption">نموذج تفاعلي · استخدم بيانات ومستندات تجريبية</p>','',null,false);
@@ -59,7 +58,7 @@ F.views['auth-register']=()=>page('تسجيل مول',lead('أرسل طلب ان
   submit('إرسال للمراجعة'),null);
 F.forms['visit-mall-register']=d=>busy('جارٍ إرسال الطلب…',async()=>{
   const name=textInput(d.name,65),company=textInput(d.company,65),city=textInput(d.city,40),point=textInput(d.point,100),identity=email(d.email);
-  if(!name||!company||!city||!point||!addressOK(identity)||!A.passwordValid(d.password))return invalid('أكمل بيانات المول وأدخل كلمة مرور من ٨ أحرف فيها حرف ورقم.');
+  if(!name||!company||!city||!point||!addressOK(identity)||!A.passwordValid(d.password))return invalid('أكمل بيانات المول وأدخل كلمة مرور من 8 أحرف فيها حرف ورقم.');
   if(!d.registration?.size)return invalid('أرفق ملفًا تجريبيًا للسجل التجاري.');
   if(unique(identity))return invalid('البريد مسجل مسبقًا. استخدم بريدًا آخر أو سجّل الدخول.');
   const m={id:uid('mall'),name,company,city,point,email:identity,status:'pending',
@@ -148,7 +147,7 @@ F.forms['visit-mall-store']=d=>busy('جارٍ إنشاء الحساب…',async(
   const existing=get('stores',F.s.visitEditStore);
   if(existing&&(existing.mall!==m.id||existing.email))return;
   const name=existing?.name||textInput(d.name,65),category=existing?.category||textInput(d.category,40),floor=existing?.floor||textInput(d.floor,50);
-  if(!name||!category||!floor||!addressOK(identity)||!A.passwordValid(d.password))return invalid('أكمل بيانات المتجر وبريده وكلمة مرور من ٨ أحرف فيها حرف ورقم.');
+  if(!name||!category||!floor||!addressOK(identity)||!A.passwordValid(d.password))return invalid('أكمل بيانات المتجر وبريده وكلمة مرور من 8 أحرف فيها حرف ورقم.');
   if(unique(identity))return invalid('هذا البريد مرتبط بحساب آخر.');
   const record={id:'merchant:'+identity,role:'merchant',email:identity,name,organization:name,org:m.id};
   await A.storePassword(record,d.password);
@@ -182,7 +181,7 @@ F.views['mall-carrier-edit']=()=>{
   return page(c?'تعديل شركة':'إضافة شركة',form('visit-carrier',
     field('name','اسم الشركة',c?.name,'اسم تجريبي','text','maxlength="65"')+
     field('coverage','المدن المشمولة',c?.coverage,'الرياض، الدرعية','text','maxlength="100"')+
-    field('eta','وقت التوصيل',c?.eta,'خلال ٢٤ ساعة','text','maxlength="45"')+
+    field('eta','وقت التوصيل',c?.eta,'خلال 24 ساعة','text','maxlength="45"')+
     field('fee','رسوم التوصيل بالريال',c?.fee??'','','number','min="0" step="0.01" inputmode="decimal"')),
     submit('حفظ الشركة'),'mall-carriers');
 };
@@ -230,7 +229,7 @@ F.views['merchant-profile']=()=>{
   return page('ملف المتجر',lead(esc(s.name),'تظهر هذه البيانات لزوار المول.')+
     form('visit-store-profile',field('name','اسم المتجر',s.name,'','text','maxlength="65"')+
       field('category','التصنيف',s.category,'','text','maxlength="40"')+
-      textarea('description','وصف المتجر',s.description,180)+field('hours','أوقات العمل',s.hours,'مثال: ١٠ ص – ١١ م','text','maxlength="60"')+
+      textarea('description','وصف المتجر',s.description,180)+field('hours','أوقات العمل',s.hours,'مثال: 10 ص – 11 م','text','maxlength="60"')+
       field('contact','معلومات التواصل',s.contact,'جوال أو بريد العرض','text','maxlength="70"')+
       fieldFile('logo','شعار المتجر','image/png,image/jpeg,image/webp')+fieldFile('photo','صورة المتجر','image/png,image/jpeg,image/webp'))+
     (s.logo||s.photo?card(`<div class="a-inline">${storeLogo(s)}<span>الوسائط الحالية</span></div>`+
@@ -260,14 +259,14 @@ F.views['merchant-register']=()=>{
   const r=reg(),s=storeForAccount();
   if(!s)return F.views['merchant-home']();
   return page('ربط فاتورة',lead('فاتورة مدفوعة',esc(s.name)+' · حدّد العميل، ثم أضف بيانات فاتورته.')+
-    form('visit-invoice',card('<h3 class="a-section fh-invoice-step"><span class="fh-step-icon">١</span> تحديد العميل</h3>'+
+    form('visit-invoice',card('<h3 class="a-section fh-invoice-step"><span class="fh-step-icon">1</span> تحديد العميل</h3>'+
       field('invoice-phone','رقم الجوال',r.phone,'05xxxxxxxx','tel','dir="ltr" maxlength="10" autocomplete="off"')+
       b('بحث عن العميل','visit-lookup','secondary small')+
       (r.person?'<div class="visit-person">'+ic('circle-check')+'<div><strong>'+esc(r.person.name)+'</strong><small dir="ltr">'+esc(mask(r.person.phone))+'</small></div>'+tag(r.person.via==='qr'?'ربط احتياطي':'حساب مطابق')+'</div>':'')+
       (r.miss?note('لم نجد حسابًا مطابقًا لهذا الرقم. تأكد منه أو استخدم رمز العميل.','warn')+
         field('invoice-qr','رمز العميل الاحتياطي',r.qr,'FH-…','text','dir="ltr" maxlength="32" autocomplete="off"')+
         b('مسح QR تجريبي','visit-qr-match','secondary small'):''),'visit-form-card')+
-      card('<h3 class="a-section fh-invoice-step"><span class="fh-step-icon">٢</span> بيانات الفاتورة</h3>'+
+      card('<h3 class="a-section fh-invoice-step"><span class="fh-step-icon">2</span> بيانات الفاتورة</h3>'+
         b('مسح باركود فاتورة تجريبية','visit-invoice-scan','secondary small')+
         (r.source==='scan'?note('تم تحميل بيانات فاتورة عرض. راجع رقمها وقيمتها وعدد الأكياس.'):
           '<p class="a-muted">أو أدخل البيانات يدويًا من فاتورة المتجر.</p>')+
@@ -384,6 +383,7 @@ const supported={
   delivery:['delivery-home','delivery-task','auth-account'],
   operations:['ops-home','ops-task','auth-account']
 };
+V.supported=supported;
 const homeFor=role=>({customer:F.s.session&&V.mall()?'stores':'malls',mall:'mall-home',merchant:'merchant-home',admin:'admin-home',delivery:'delivery-home',operations:'ops-home'})[role];
 F.actions['auth-home']=()=>F.go(homeFor(A.session?.role)||'auth-entry',{replace:true});
 const render=F.render;

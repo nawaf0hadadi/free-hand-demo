@@ -10,6 +10,7 @@ const clean=(v,n=100)=>textInput(v,n);
 const file=(name,label)=>`<label class="a-field">${label}<input type="file" name="${name}" accept=".pdf,image/png,image/jpeg"></label>`;
 const section=(title,fields)=>`<fieldset class="fh-form-section"><legend>${title}</legend>${fields}</fieldset>`;
 let kind='choose',sending=false,direct=false;
+V.joinKind=()=>kind;V.joinSending=()=>sending;
 const documents=F.JoinDocuments||={
  async database(){return new Promise((resolve,reject)=>{const r=indexedDB.open('fh-join-documents',1);r.onupgradeneeded=()=>r.result.createObjectStore('files');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});},
  async put(id,file){const db=await this.database();try{await new Promise((resolve,reject)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').put(file,id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}finally{db.close();}},
@@ -44,14 +45,14 @@ F.views['auth-register']=()=>{
  field('name','اسم المتجر والفرع','','مثال: متجر العطور · فرع المول','text','maxlength="65"')+
  field('category','نشاط المتجر','','أزياء، عطور، إلكترونيات','text','maxlength="40"')+
  field('floor','الدور ورقم المحل','','مثال: الدور الأول، محل B14','text','maxlength="50"'))+
- section('مستندات الاعتماد',field('registration','رقم السجل التجاري','','١٠ أرقام','text','inputmode="numeric" maxlength="10" dir="ltr"')+
+ section('مستندات الاعتماد',field('registration','رقم السجل التجاري','','10 أرقام','text','inputmode="numeric" maxlength="10" dir="ltr"')+
  field('lease','رقم عقد الإيجار أو مرجع الفرع لدى المول','','رقم المرجع','text','maxlength="60"')+
  file('document','نسخة السجل التجاري · ملف تجريبي مطلوب')+
  file('leaseDocument','إثبات وجود الفرع في المول · ملف تجريبي مطلوب'))+
  section('حساب مسؤول المتجر',field('manager','اسم مسؤول المتجر','','الاسم','text','maxlength="60"')+
  field('phone','جوال التواصل','','05xxxxxxxx','tel','maxlength="10" dir="ltr"')+
  field('email','البريد الإلكتروني للحساب','','name@example.com','email','dir="ltr" autocomplete="username"')+
- field('password','كلمة المرور','','٨ أحرف على الأقل، حرف ورقم','password','autocomplete="new-password"')+
+ field('password','كلمة المرور','','8 أحرف على الأقل، حرف ورقم','password','autocomplete="new-password"')+
  field('confirm','تأكيد كلمة المرور','','أعد كتابة كلمة المرور','password','autocomplete="new-password"'))+
  '<label class="a-check"><input type="checkbox" name="authorized"><span>أقر بصحة البيانات وأني مخوّل بتقديم الطلب عن المتجر.</span></label>'):
  note('لا توجد مولات معتمدة حاليًا. يجب تسجيل المول واعتماده أولًا.'))+
@@ -63,12 +64,12 @@ F.forms['join-request']=async d=>{
  const identity=clean(d.email,120).toLowerCase(),registration=F.digits(d.registration),phone=F.digits(d.phone);
  if(!m)return invalid('اختر مولًا معتمدًا من القائمة.');
  if([d.name,d.category,d.floor,d.lease,d.manager].some(x=>clean(x).length<2))return invalid('أكمل بيانات الفرع ومسؤوله ومرجع وجوده في المول.');
- if(!/^\d{10}$/.test(registration)||!/^05\d{8}$/.test(phone))return invalid('أدخل سجلًا من ١٠ أرقام وجوالًا صحيحًا يبدأ بـ05.');
- if(!A.validEmail(identity)||!A.passwordValid(d.password)||d.password!==d.confirm)return invalid('راجع البريد وتطابق كلمتي المرور. كلمة المرور ٨ أحرف على الأقل وفيها حرف ورقم.');
+ if(!/^\d{10}$/.test(registration)||!/^05\d{8}$/.test(phone))return invalid('أدخل سجلًا من 10 أرقام وجوالًا صحيحًا يبدأ بـ05.');
+ if(!A.validEmail(identity)||!A.passwordValid(d.password)||d.password!==d.confirm)return invalid('راجع البريد وتطابق كلمتي المرور. كلمة المرور 8 أحرف على الأقل وفيها حرف ورقم.');
  if(!d.authorized)return invalid('أكد صحة البيانات وصلاحيتك لتقديم الطلب.');
  if(!d.document?.size||!d.leaseDocument?.size)return invalid('أرفق السجل وإثبات وجود الفرع باستخدام ملفين تجريبيين.');
  const docs=[d.document,d.leaseDocument];
- if(docs.some(f=>f.size>5*1024*1024||!['application/pdf','image/png','image/jpeg'].includes(f.type)))return invalid('المرفقات PDF أو PNG أو JPG، حتى ٥ ميغابايت للملف.');
+ if(docs.some(f=>f.size>5*1024*1024||!['application/pdf','image/png','image/jpeg'].includes(f.type)))return invalid('المرفقات PDF أو PNG أو JPG، حتى 5 ميغابايت للملف.');
  if(['mall','merchant','delivery','admin','operations'].some(r=>A.recordFor(r,identity))||data.stores.some(s=>s.email===identity)||data.malls.some(m=>m.email===identity))return invalid('البريد مسجل مسبقًا. استخدم بريدًا آخر أو سجّل الدخول.');
  if(data.stores.some(s=>s.mall===m.id&&(s.name.trim()===clean(d.name,65)||s.floor.trim()===clean(d.floor,50))&&s.status!=='rejected'))return invalid('يوجد متجر أو طلب لهذا الاسم أو رقم المحل في المول. راجع إدارة المول.');
  sending=true;
@@ -97,6 +98,7 @@ F.views['mall-stores']=()=>{
  return view;
 };
 let docURLs=[];
+V.joinDocURL=id=>docURLs.find(d=>d.id===id)?.url;
 F.actions['join-review']=async btn=>{
  const s=data.stores.find(s=>s.id===btn.dataset.id&&s.mall===owner()?.id);if(!s)return;
  docURLs.forEach(d=>URL.revokeObjectURL(d.url));docURLs=[];
@@ -120,7 +122,7 @@ function decide(approve){
  const s=selected();if(!s||!owner())return;
  const fields=new FormData(F.$('#app-form')),reason=clean(fields.get('reason'),200);
  if(approve&&!fields.get('verified'))return invalid('أكد مطابقة السجل ووجود الفرع في المول قبل الاعتماد.');
- if(!approve&&reason.length<5)return invalid('اكتب سببًا واضحًا للرفض من ٥ أحرف على الأقل.');
+ if(!approve&&reason.length<5)return invalid('اكتب سببًا واضحًا للرفض من 5 أحرف على الأقل.');
  s.status=approve?'approved':'rejected';s.active=approve;s.reason=reason;s.reviewedBy=A.session.email;s.reviewedAt=new Date().toISOString();save();F.s.joinReview=null;F.render();F.toast(approve?'تم اعتماد المتجر، ويمكنه تسجيل الدخول الآن.':'تم حفظ سبب الرفض.');
 }
 F.actions['join-approve']=()=>decide(true);F.actions['join-reject']=()=>decide(false);

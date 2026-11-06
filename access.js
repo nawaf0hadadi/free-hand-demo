@@ -17,7 +17,7 @@ const customerRoutes=new Set(['saved-places','place-editor','shipping-choice','m
 const sharedRoutes=new Set(['auth-account','auth-password','u-demo-guide','support','chat']);
 const prohibited=new Set(['u-spaces','u-demo-spaces','u-add-business','partner-otp','u-welcome','onboarding-1','onboarding-2','onboarding-3']);
 function allowed(role,route){if(prohibited.has(route)||Object.keys(roles).some(r=>r!=='customer'&&route===r+'-login'))return false;if(sharedRoutes.has(route))return true;if(role==='customer')return customerRoutes.has(route);if(route==='u-work-more')return true;if(role==='mall')return route.startsWith('mall-')||['u-add-mall','u-add-mall-setup','u-mall-status'].includes(route);if(role==='merchant')return route.startsWith('merchant-')||['u-add-store','u-add-store-setup','u-store-status'].includes(route);if(role==='operations')return route.startsWith('ops-');if(role==='delivery')return route.startsWith('delivery-');if(role==='admin')return route.startsWith('admin-')||['ops-manifest','mall-invoice','shipping-details'].includes(route);return false;}
-A.allowed=allowed;
+A.allowed=allowed;A.publicRoutes=publicRoutes;A.customerRoutes=customerRoutes;
 function home(){if(!A.session)return 'auth-entry';return A.session.role==='customer'?(F.s.session?'stores':'malls'):roles[A.session.role].home;}
 function recordFor(role,identity){const id=role+':'+identity.toLowerCase();if(model.records[id])return {...model.records[id],id};if(role!=='customer'&&roles[role]?.email===identity.toLowerCase())return {id,role,email:identity.toLowerCase(),name:roles[role].name,organization:roles[role].orgName,org:'front',demo:true};return null;}
 const customerFields=['name','phone','session','mall','unifiedMallId','bags','selected','destination','address','order','history','cases','rating','orderTab','visitPlan','visitDone','activeStore','storeSearch','storeFilter','quote','parcel','terms','payment','messages'];
@@ -34,6 +34,7 @@ function startSession(record){if(!model.records[record.id])model.records[record.
 function logout(){persist();A.session=null;model.session=null;A.pendingPhone='';A.recovery=null;F.s=F.fresh();F.s.route='auth-entry';F.stack=[];F.draft={};F.error='';F.closeSheet();write();F.render(true);}
 A.logout=logout;A.persist=persist;
 Object.assign(A,{recordFor,storePassword,startSession,validEmail,passwordValid});
+A.verifyPassword=async(record,password)=>!!record&&(record.demo?password===demoPassword:record.hash===await passwordHash(String(password||''),record.salt));
 
 /* Public entry points select the login form, never an authenticated workspace. */
 const entryCard=(r,title,sub)=>`<button class="auth-type-card" data-action="auth-type-${r}"><span>${ic(roles[r].icon)}</span><div><strong>${title}</strong><small>${sub}</small></div>${ic('arrow-left')}</button>`;
