@@ -11,7 +11,8 @@
   /* ---------- Formatting ---------- */
   const nf = new Intl.NumberFormat('ar-SA-u-nu-latn', { maximumFractionDigits: 2 });
   UI.num = n => nf.format(Number(n) || 0);
-  UI.cash = n => `<bdi class="fh-money">${UI.num(n)} ر.س</bdi>`;
+  const nf2 = new Intl.NumberFormat('ar-SA-u-nu-latn', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  UI.cash = n => `<bdi class="fh-money">${Number(n) % 1 ? nf2.format(n) : UI.num(n)} ر.س</bdi>`;
   UI.latin = s => String(s ?? '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
   UI.ltr = s => `<bdi dir="ltr">${esc(s)}</bdi>`;
   UI.iso = s => `<bdi>${esc(s)}</bdi>`; // isolates mixed Arabic/Latin values such as «الأول · B14»
@@ -52,9 +53,76 @@
       <input id="${id}" name="${name}" type="${type}" value="${esc(value)}" placeholder="${esc(placeholder)}" ${attrs}${described ? ` aria-describedby="${described}"` : ''}${error ? ' aria-invalid="true"' : ''}>
       ${hint ? `<small class="fh-hint" id="${id}-hint">${hint}</small>` : ''}${error ? `<small class="fh-field-error" id="${id}-error">${ic('circle-alert')}${error}</small>` : ''}</label>`;
   };
-  UI.selectField = ({ name, label, options, value = '', hint = '' }) => {
+  UI.selectField = ({ name, label, options, value = '', hint = '', attrs = '' }) => {
     const id = 'f-' + name;
-    return `<label class="a-field fh-field" for="${id}"><span class="fh-label">${label}</span><select id="${id}" name="${name}"${hint ? ` aria-describedby="${id}-hint"` : ''}>${options.map(([v, l]) => `<option value="${esc(v)}"${String(value) === String(v) ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>${hint ? `<small class="fh-hint" id="${id}-hint">${hint}</small>` : ''}</label>`;
+    return `<label class="a-field fh-field" for="${id}"><span class="fh-label">${label}</span><select id="${id}" name="${name}" ${attrs}${hint ? ` aria-describedby="${id}-hint"` : ''}>${options.map(([v, l]) => `<option value="${esc(v)}"${String(value) === String(v) ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>${hint ? `<small class="fh-hint" id="${id}-hint">${hint}</small>` : ''}</label>`;
+  };
+  UI.textarea = ({ name, label, value = '', placeholder = '', attrs = '', hint = '' }) => {
+    const id = 'f-' + name;
+    return `<label class="a-field fh-field" for="${id}"><span class="fh-label">${label}</span><textarea id="${id}" name="${name}" placeholder="${esc(placeholder)}" ${attrs}${hint ? ` aria-describedby="${id}-hint"` : ''}>${esc(value)}</textarea>${hint ? `<small class="fh-hint" id="${id}-hint">${hint}</small>` : ''}</label>`;
+  };
+  UI.optional = ' <span class="fh-optional">اختياري</span>';
+  UI.requiredNote = '<p class="fh-form-note">كل الحقول مطلوبة ما لم يُذكر «اختياري».</p>';
+
+  /* In-place field errors: shown beside each field without re-rendering, so typed values,
+     chosen files and passwords stay in the form. Cleared as soon as the field changes. */
+  UI.clearErrors = (scope = document) => {
+    scope.querySelectorAll('.fh-field-error.is-dynamic').forEach(el => el.remove());
+    scope.querySelectorAll('[data-fh-invalid]').forEach(el => {
+      el.removeAttribute('aria-invalid');
+      el.removeAttribute('data-fh-invalid');
+      const ids = (el.getAttribute('aria-describedby') || '').split(' ').filter(x => x && !x.startsWith('err-'));
+      if (ids.length) el.setAttribute('aria-describedby', ids.join(' ')); else el.removeAttribute('aria-describedby');
+      el.closest('.has-error')?.classList.remove('has-error');
+    });
+  };
+  UI.showErrors = (errors, { form: formSel = '#app-form', toast = true } = {}) => {
+    const formEl = document.querySelector(formSel);
+    if (!formEl) return 0;
+    UI.clearErrors(formEl);
+    let first = null;
+    for (const [name, message] of Object.entries(errors)) {
+      const el = formEl.querySelector(`[name="${name}"]`);
+      if (!el) continue;
+      const wrap = el.closest('.a-check') || el.closest('.fh-field, .a-field') || el.parentElement;
+      wrap.classList.add('has-error');
+      const note = document.createElement('small');
+      note.className = 'fh-field-error is-dynamic';
+      note.id = 'err-' + name;
+      note.innerHTML = ic('circle-alert') + esc(message);
+      if (wrap.matches('.a-check')) wrap.after(note); else wrap.appendChild(note);
+      el.setAttribute('aria-invalid', 'true');
+      el.setAttribute('data-fh-invalid', '');
+      const ids = (el.getAttribute('aria-describedby') || '').split(' ').filter(x => x && !x.startsWith('err-'));
+      el.setAttribute('aria-describedby', [...ids, note.id].join(' '));
+      first ||= el;
+    }
+    F.icons();
+    const count = Object.keys(errors).length;
+    if (first) { first.focus({ preventScroll: true }); first.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+    if (toast && count) F.toast(count === 1 ? 'راجع الحقل المظلّل.' : `راجع الحقول المظلّلة (${UI.num(count)}).`, true);
+    return count;
+  };
+  const clearOne = e => {
+    const el = e.target;
+    if (!el.hasAttribute?.('data-fh-invalid')) return;
+    const wrap = el.closest('.a-check') || el.closest('.fh-field, .a-field');
+    document.getElementById('err-' + el.name)?.remove();
+    el.removeAttribute('aria-invalid');
+    el.removeAttribute('data-fh-invalid');
+    wrap?.classList.remove('has-error');
+  };
+  // Capture on document: access.js stops password input events at #phone-app so they never reach drafts.
+  document.addEventListener('input', clearOne, true);
+  document.addEventListener('change', clearOne, true);
+
+  /* Password rules shared by every flow that creates or changes a password. */
+  UI.passwordErrors = (password, confirm, names = ['password', 'confirm']) => {
+    const errors = {};
+    if (!A.passwordValid(password)) errors[names[0]] = 'استخدم 8 أحرف على الأقل، تتضمن حرفًا ورقمًا.';
+    if (!confirm) errors[names[1]] = 'أعد كتابة كلمة المرور للتأكيد.';
+    else if (password !== confirm) errors[names[1]] = 'كلمتا المرور غير متطابقتين. أعد كتابة التأكيد.';
+    return errors;
   };
   UI.status = (label, tone = '') => `<span class="fh-status ${tone}">${label}</span>`;
   UI.callout = (icon, title, body, tone = '') => `<div class="fh-callout ${tone}">${ic(icon)}<div><strong>${title}</strong>${body ? `<p>${body}</p>` : ''}</div></div>`;
@@ -217,6 +285,14 @@
       <section><h3>المتسوّق</h3>
         <p>أي رقم صحيح يبدأ بـ <bdi dir="ltr">05</bdi> ينشئ متسوّقًا جديدًا. متسوّق عائد: <bdi dir="ltr">0500000000</bdi>. رمز التحقق: <bdi dir="ltr">1234</bdi>.</p>
         <button type="button" class="fh-demo-btn" data-demo="shopper">${ic('smartphone')} تعبئة رقم المتسوّق العائد</button>
+      </section>
+      <section><h3>جولة الكاشير ← المتسوّق</h3>
+        <ol class="fh-demo-steps">
+          <li>ادخل كمتسوّق جديد برقم مثل <bdi dir="ltr">0551234567</bdi>، اكتب اسمك واختر «مول الواجهة».</li>
+          <li>سجّل الخروج من «حسابي»، ثم ادخل من «حسابات الأعمال» بحساب <bdi dir="ltr">store@example.com</bdi>.</li>
+          <li>«ربط فاتورة»: ابحث بالرقم، أكّد الاسم، أدخل الفاتورة واربطها.</li>
+          <li>سجّل الخروج وادخل بالرقم نفسه: الفاتورة في «المشتريات» جاهزة للجمع.</li>
+        </ol>
       </section>
       <section><h3>حسابات الأعمال</h3><p>كلمة المرور لجميع الحسابات: <bdi dir="ltr">Demo1234!</bdi></p>
         <ul>${demoAccounts.map(([, label, email]) => `<li><span><strong>${label}</strong><bdi dir="ltr">${email}</bdi></span><button type="button" class="fh-demo-btn small" data-demo="fill" data-email="${email}">تعبئة</button></li>`).join('')}</ul>

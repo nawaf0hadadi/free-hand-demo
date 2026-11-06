@@ -1,8 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" role="img" aria-label="Free Hand">
-  <rect width="48" height="48" rx="12" fill="#11392b"/>
-  <rect x="13" y="11" width="6.5" height="26" rx="3.25" fill="#fffefa"/>
-  <rect x="13" y="11" width="22" height="6.5" rx="3.25" fill="#fffefa"/>
-  <rect x="13" y="21.25" width="13" height="6.5" rx="3.25" fill="#fffefa"/>
-  <circle cx="33.25" cy="24.5" r="3.75" fill="#e1edaa"/>
+  <rect width="48" height="48" rx="13" fill="#11392b"/>
+  <path d="M9.5 24v3.5a7 7 0 0 0 7 7H20M38.5 24v-3.5a7 7 0 0 0-7-7H28" fill="none" stroke="#fffefa" stroke-width="5.5" stroke-linecap="round"/>
+  <rect x="18.5" y="18.5" width="11" height="11" rx="3" fill="#e1edaa"/>
   <text x="60" y="33" fill="#11392b" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="27" font-weight="700" letter-spacing="-0.6">Free <tspan font-weight="500" fill="#20523e">Hand</tspan></text>
 </svg>

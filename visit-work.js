@@ -98,7 +98,7 @@ function decide(status,reason=''){
   const m=get('malls',F.s.visitReviewMall);
   if(A.session?.role!=='admin'||m?.status!=='pending')return;
   m.status=status;m.reason=reason;save();F.closeSheet();F.go('admin-home',{replace:true});
-  F.toast(status==='approved'?'تم اعتماد المول':'تم رفض طلب الانضمام');
+  F.toast(status==='approved'?'تم اعتماد المول، وفُتحت لوحة إدارته':'تم رفض طلب تسجيل المول، وسيرى المول السبب');
 }
 F.actions['visit-mall-approve']=()=>decide('approved');
 F.actions['visit-mall-reject']=()=>F.sheet('رفض طلب الانضمام',form('visit-reject',field('reason','سبب الرفض','','مثال: السجل التجاري غير واضح','text','maxlength="140"')),submit('تأكيد الرفض'));
@@ -389,9 +389,6 @@ F.actions['auth-home']=()=>F.go(homeFor(A.session?.role)||'auth-entry',{replace:
 const render=F.render;
 F.render=animate=>{
   const role=A.session?.role;
-  if(role==='customer'&&F.s.route==='auth-customer-name'){
-    F.s.name='متسوق Free Hand';A.session.name=F.s.name;A.model.records[A.session.id].name=F.s.name;
-  }
   if(role&&!supported[role]?.includes(F.s.route))F.s.route=homeFor(role);
   if(role==='mall'&&mallForAccount()?.status!=='approved'&&F.s.route!=='auth-account')F.s.route='u-mall-status';
   if(role==='merchant'&&!storeForAccount()&&F.s.route!=='auth-account')F.s.route='merchant-home';

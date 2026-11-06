@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Free Hand mark exploration</title>
+<style>
+  body { margin: 0; padding: 24px; font: 14px/1.5 'Segoe UI', Arial, sans-serif; background: #f7f7ef; color: #182e25; }
+  h1 { font-size: 18px; margin: 0 0 16px; }
+  .row { display: flex; align-items: center; gap: 22px; padding: 16px; margin-bottom: 12px; background: #fffefa; border: 1px solid #dce5d9; border-radius: 16px; }
+  .row.dark { background: #11392b; color: #fff; }
+  .label { width: 230px; }
+  .label b { display: block; font-size: 15px; }
+  svg { display: block; }
+  .tab { display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: #dee1e6; border-radius: 8px 8px 0 0; font-size: 12px; color: #333; }
+</style>
+</head>
+<body>
+<h1>Free Hand — mark candidates at 16, 24, 32, 48 and 96 px</h1>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <!-- A. "Fh" ligature: F (white) shares its stem with a lowercase h whose arch (lime) is the F's middle bar. -->
+    <symbol id="a" viewBox="0 0 48 48">
+      <rect width="48" height="48" rx="13" fill="#11392b"/>
+      <rect x="12" y="10.5" width="6.5" height="27" rx="3.25" fill="#fffefa"/>
+      <rect x="12" y="10.5" width="22" height="6.5" rx="3.25" fill="#fffefa"/>
+      <path d="M15.25 24.25H27.5a6.25 6.25 0 0 1 6.25 6.25v3.75" fill="none" stroke="#e1edaa" stroke-width="6.5" stroke-linecap="round"/>
+    </symbol>
+    <!-- B. Lifted handle: a bag body with its handle raised away from it — "hands free". -->
+    <symbol id="b" viewBox="0 0 48 48">
+      <rect width="48" height="48" rx="13" fill="#11392b"/>
+      <path d="M17 17v-2a7 7 0 0 1 14 0v2" fill="none" stroke="#e1edaa" stroke-width="4" stroke-linecap="round"/>
+      <rect x="11" y="21" width="26" height="17" rx="5" fill="#fffefa"/>
+    </symbol>
+    <!-- D. Arch H: two stems joined by an arch (a carried handle) with a lime crossbar. -->
+    <symbol id="d" viewBox="0 0 48 48">
+      <rect width="48" height="48" rx="13" fill="#11392b"/>
+      <path d="M15.5 37V21a8.5 8.5 0 0 1 17 0v16" fill="none" stroke="#fffefa" stroke-width="6.5" stroke-linecap="round"/>
+      <path d="M15.5 27.5h17" stroke="#e1edaa" stroke-width="6" stroke-linecap="round"/>
+    </symbol>
+    <!-- J. Lifted package: a parcel raised above an open cradle — "we take it off your hands". -->
+    <symbol id="j" viewBox="0 0 48 48">
+      <rect width="48" height="48" rx="13" fill="#11392b"/>
+      <rect x="17" y="9.5" width="14" height="14" rx="3.5" fill="#e1edaa"/>
+      <path d="M11.5 25.5v1.5a12.5 12.5 0 0 0 25 0v-1.5" fill="none" stroke="#fffefa" stroke-width="6" stroke-linecap="round"/>
+    </symbol>
+    <!-- K. Handoff: two quarter shapes passing a parcel between them. -->
+    <symbol id="k" viewBox="0 0 48 48">
+      <rect width="48" height="48" rx="13" fill="#11392b"/>
+      <path d="M10 32h9a5 5 0 0 0 5-5" fill="none" stroke="#fffefa" stroke-width="6" stroke-linecap="round"/>
+      <path d="M38 16h-9a5 5 0 0 0-5 5" fill="none" stroke="#fffefa" stroke-width="6" stroke-linecap="round"/>
+      <rect x="19.5" y="19.5" width="9" height="9" rx="2.5" fill="#e1edaa" transform="rotate(45 24 24)"/>
+    </symbol>
+    <!-- L. Carried parcel: a cradle arc under a parcel tilted forward (motion). -->
+    <symbol id="l" viewBox="0 0 48 48">
+      <rect width="48" height="48" rx="13" fill="#11392b"/>
+      <rect x="16.5" y="10" width="15" height="15" rx="3.5" fill="#e1edaa" transform="rotate(-12 24 17.5)"/>
+      <path d="M10.5 28a13.5 10 0 0 0 27 0" fill="none" stroke="#fffefa" stroke-width="6" stroke-linecap="round"/>
+    </symbol>
+    <!-- K2. Handoff, refined: separated hands, larger parcel. -->
+    <symbol id="k2" viewBox="0 0 48 48">
+      <rect width="48" height="48" rx="13" fill="#11392b"/>
+      <path d="M9 34.5h6.5a5 5 0 0 0 5-5V28" fill="none" stroke="#fffefa" stroke-width="5.5" stroke-linecap="round"/>
+      <path d="M39 13.5h-6.5a5 5 0 0 0-5 5V20" fill="none" stroke="#fffefa" stroke-width="5.5" stroke-linecap="round"/>
+      <rect x="18" y="18" width="12" height="12" rx="3" fill="#e1edaa" transform="rotate(45 24 24)"/>
+    </symbol>
+    <!-- K3. Handoff, square parcel held between two cupped hands. -->
+    <symbol id="k3" viewBox="0 0 48 48">
+      <rect width="48" height="48" rx="13" fill="#11392b"/>
+      <path d="M9.5 24v3.5a7 7 0 0 0 7 7H20" fill="none" stroke="#fffefa" stroke-width="5.5" stroke-linecap="round"/>
+      <path d="M38.5 24v-3.5a7 7 0 0 0-7-7H28" fill="none" stroke="#fffefa" stroke-width="5.5" stroke-linecap="round"/>
+      <rect x="18.5" y="18.5" width="11" height="11" rx="3" fill="#e1edaa"/>
+    </symbol>
+  </defs>
+</svg>
+<div id="rows"></div>
+<script>
+  const sets = [['k2', 'K2 · Handoff refined', 'Separated hands, larger parcel.'], ['k3', 'K3 · Cupped handoff', 'Square parcel between two cupped hands.'], ['k', 'K · Handoff', 'Original handoff sketch.'], ['a', 'A · Fh ligature', 'F and h share one stem; the h arch is the F middle bar.'], ['b', 'B · Lifted handle', 'Bag with the handle raised: "hands free".'], ['d', 'D · Arch H', 'H made of an arch (a carried handle) and a crossbar.'], ['j', 'J · Lifted parcel', 'A parcel lifted above an open cradle.'], ['k', 'K · Handoff', 'Two hands passing a parcel.'], ['l', 'L · Carried parcel', 'Cradle under a parcel tilted forward.']];
+  const sizes = [16, 24, 32, 48, 96];
+  document.getElementById('rows').innerHTML = sets.map(([id, name, note]) =>
+    ['', 'dark'].map(tone => `<div class="row ${tone}"><div class="label"><b>${name}</b>${tone ? 'on deep green' : note}</div>${sizes.map(s => `<svg width="${s}" height="${s}"><use href="#${id}"/></svg>`).join('')}<span class="tab"><svg width="16" height="16"><use href="#${id}"/></svg>Free Hand</span></div>`).join('')).join('');
+</script>
+</body>
+</html>

@@ -22,36 +22,45 @@
   };
 
   /* ---------- Landing ---------- */
+  // Order: promise → the two delivery options → what it costs → sign-in. The full how-it-works
+  // sequence lives in «كيف تعمل؟» and on the first Purchases screen, where it is needed.
   F.views['auth-entry'] = () => ({
     title: 'Free Hand', header: '', nav: null,
     html: `<div class="fh-landing">
-      <div class="fh-landing-top">${UI.brand(36)}<button type="button" class="fh-text-btn" data-action="fh-guide">${ic('circle-help')}<span>كيف تعمل الخدمة؟</span></button></div>
-      <section class="fh-landing-hero">
-        <h1>نجمع مشترياتك<br><span>ونوصّلها لك</span></h1>
-        <p>تسوّق من متاجر المول وادفع كالمعتاد. نجمع الأكياس من المتاجر في طلب واحد ونسلّمها لك.</p>
+      <header class="fh-landing-top">${UI.brand(34)}<button type="button" class="fh-text-btn" data-action="fh-guide">${ic('circle-help')}<span>كيف تعمل؟</span></button></header>
+      <section class="fh-landing-hero" aria-labelledby="fh-promise">
+        <p class="fh-eyebrow">لمتسوّقي المولات</p>
+        <h1 id="fh-promise">نجمع مشترياتك<br><span>ونوصّلها لك</span></h1>
+        <p>ادفع في متاجر المول كالمعتاد، ونحن نجمع أكياسك من كل المتاجر في طلب واحد.</p>
       </section>
-      <figure class="fh-flow" aria-label="مسار الخدمة: تدفع في المتاجر، ثم نجمع الأكياس، ثم نوصلها إلى منزلك أو إلى سيارتك في المول">
-        <div class="fh-flow-node"><span>${ic('store')}</span><small>تدفع في المتاجر</small></div>
-        <i class="fh-flow-line" aria-hidden="true"></i>
-        <div class="fh-flow-node is-brand"><span>${UI.mark(30)}</span><small>نجمع الأكياس</small></div>
-        <i class="fh-flow-line" aria-hidden="true"></i>
-        <div class="fh-flow-node fh-flow-dest"><span class="fh-flow-pair"><i>${ic('house')}</i><i>${ic('car-front')}</i></span><small>إلى منزلك أو سيارتك في المول</small></div>
-      </figure>
+      <ul class="fh-landing-options" aria-label="خيارات التسليم">
+        <li><span class="fh-icon-tile">${ic('house')}</span><strong>إلى منزلك</strong><small>مع شركة توصيل تختارها</small></li>
+        <li><span class="fh-icon-tile">${ic('car-front')}</span><strong>إلى سيارتك</strong><small>في مواقف المول نفسه</small></li>
+      </ul>
+      <p class="fh-landing-fee">${ic('wallet')}<span>قيمة مشترياتك تدفعها للمتجر. رسوم Free Hand تبدأ من ${UI.cash(V.fee)} وتُدفع عند طلب الجمع.</span></p>
       <div class="fh-landing-actions">
-        ${b(`${ic('smartphone')}<span>دخول المتسوّق</span>${ic('arrow-left')}`, 'go:login', 'fh-primary')}
-        ${b(`${ic('building-2')}<span>حسابات الأعمال<small>المتاجر والمولات وفرق التشغيل</small></span>${ic('chevron-left')}`, 'go:auth-role-login', 'secondary fh-secondary')}
+        ${b(`${ic('smartphone')}<span>دخول المتسوّق<small>برقم جوالك ورمز تحقق</small></span>${ic('arrow-left')}`, 'go:login', 'fh-primary')}
+        ${b(`${ic('building-2')}<span>حسابات الأعمال<small>المتاجر والمولات والتشغيل والتوصيل</small></span>${ic('chevron-left')}`, 'go:auth-role-login', 'secondary fh-secondary')}
+        <button type="button" class="fh-prototype" data-action="fh-demo-tools">${ic('flask-conical')} نسخة تجريبية · أدوات العرض</button>
       </div>
-      <button type="button" class="fh-prototype" data-action="fh-demo-tools">${ic('flask-conical')} نسخة تجريبية · أدوات العرض</button>
     </div>`
   });
 
-  F.actions['fh-guide'] = () => F.sheet('كيف تعمل الخدمة؟', `<ol class="fh-guide-steps">
-      <li><span class="fh-step-icon">${ic('credit-card')}</span><div><strong>ادفع في المتجر كالمعتاد</strong><p>أعطِ الكاشير رقم جوالك ليربط الفاتورة المدفوعة بحسابك.</p></div></li>
-      <li><span class="fh-step-icon">${ic('receipt-text')}</span><div><strong>اطلب جمع مشترياتك</strong><p>تظهر فواتيرك في «المشتريات». اختر مكان التسليم وادفع رسوم الخدمة فقط.</p></div></li>
-      <li><span class="fh-step-icon">${ic('route')}</span><div><strong>نجمعها ونوصلها</strong><p>نستلم الأكياس من المتاجر ونسلّمها عند سيارتك في المول أو على عنوان منزلك.</p></div></li>
-    </ol>
+  /* What the shopper does and what the cashier does, in the same words on every screen
+     that explains linking (guide sheet, Stores, empty Purchases). */
+  UI.linkSteps = (phone = '') => `<ol class="fh-link-flow">
+      <li><span class="fh-icon-tile">${ic('credit-card')}</span><div><strong>ادفع في المتجر كالمعتاد</strong><small>قيمة المشتريات تُدفع للمتجر مباشرة.</small></div></li>
+      <li><span class="fh-icon-tile">${ic('smartphone')}</span><div><strong>أعطِ الكاشير رقم جوالك</strong><small>${phone ? `الرقم نفسه الذي دخلت به: <bdi dir="ltr">${esc(UI.phone(phone))}</bdi>` : 'الرقم نفسه الذي تدخل به Free Hand.'}</small></div></li>
+      <li><span class="fh-icon-tile">${ic('user-round-check')}</span><div><strong>الكاشير يتأكد منك ويربط الفاتورة</strong><small>يبحث برقمك ويراجع اسمك وآخر 4 أرقام، ثم يدخل الفاتورة المدفوعة.</small></div></li>
+      <li><span class="fh-icon-tile">${ic('receipt-text')}</span><div><strong>تظهر في «المشتريات» جاهزة للجمع</strong><small>بلا مسح أو إدخال منك. اطلب جمعها وادفع رسوم الخدمة فقط.</small></div></li>
+    </ol>`;
+
+  F.actions['fh-guide'] = () => F.sheet('كيف تعمل الخدمة؟', UI.linkSteps() +
+    `<ol class="fh-link-flow is-tail"><li><span class="fh-icon-tile">${ic('route')}</span><div><strong>نجمعها ونسلّمها لك</strong><small>نستلم الأكياس من المتاجر ونسلّمها عند سيارتك في المول أو على عنوان منزلك.</small></div></li></ol>
     <div class="fh-fee-explain">${UI.line('قيمة المشتريات', 'تُدفع للمتجر')}${UI.line('رسوم الجمع', UI.cash(V.fee))}${UI.line('التوصيل للمنزل', 'حسب شركة التوصيل')}</div>`,
-    b('دخول المتسوّق ' + ic('arrow-left'), 'go:login'));
+    A.session ? '' : b('دخول المتسوّق ' + ic('arrow-left'), 'go:login'));
+  F.actions['fh-link-help'] = () => F.sheet('كيف تصل فواتيرك إلى التطبيق؟', UI.linkSteps(V.customer()) +
+    `<p class="fh-footnote">${ic('qr-code')}<span>إذا تعذّر البحث برقمك، اعرض على الكاشير رمزك الاحتياطي من شاشة «المشتريات».</span></p>`);
 
   /* ---------- Sign-in ---------- */
   let phoneError = '';
@@ -101,6 +110,19 @@
   F.actions['fh-edit-phone'] = () => { codeError = ''; F.go('login', { replace: true }); };
   F.actions['fh-resend'] = () => F.toast('أُعيد إرسال الرمز (محاكاة). الرمز التجريبي 1234.');
 
+  // New shoppers give a first name: the cashier confirms it with the masked number before linking.
+  V.supported.customer.push('auth-customer-name');
+  F.views['auth-customer-name'] = () => page('اسمك',
+    intro('user-round', 'ما اسمك؟', 'يراه الكاشير مع آخر 4 أرقام من جوالك ليتأكد أنه يربط الفاتورة بحسابك.') +
+    form('auth-customer-name', UI.field({ name: 'customer-name', label: 'الاسم الأول', value: F.draft['customer-name'] || '', placeholder: 'مثال: سارة', attrs: 'maxlength="35" autocomplete="given-name" required' })),
+    submit('متابعة ' + ic('arrow-left')), null, false);
+  const nameSubmit = F.forms['auth-customer-name'];
+  F.forms['auth-customer-name'] = d => {
+    const name = String(d['customer-name'] || '').trim();
+    if (name.length < 2) return UI.showErrors({ 'customer-name': 'اكتب اسمك الأول (حرفان على الأقل).' });
+    nameSubmit({ 'customer-name': name.slice(0, 35) });
+  };
+
   /* ---------- Mall selection and stores ---------- */
   const activeStores = mallId => V.stores(mallId).filter(s => s.active);
   const hasHomeDelivery = mallId => V.data.carriers.some(c => c.mall === mallId && c.active);
@@ -141,11 +163,9 @@
     const categories = ['الكل', ...new Set(stores.map(s => s.category))];
     const order = UI.openOrder(m.id);
     const count = UI.myInvoices(m.id).length;
-    const link2 = `<section class="fh-link-card"><div class="fh-link-steps">
-        <span>${ic('credit-card')}<small>ادفع في المتجر</small></span>${ic('chevron-left')}
-        <span>${ic('smartphone')}<small>أعطِ الكاشير رقمك</small></span>${ic('chevron-left')}
-        <span>${ic('receipt-text')}<small>تظهر في المشتريات</small></span></div>
-        <p>رقمك المرتبط: <bdi dir="ltr">${esc(UI.phone(V.customer()))}</bdi></p></section>`;
+    const link2 = `<section class="fh-number-card"><span class="fh-icon-tile">${ic('smartphone')}</span>
+        <div><small>بعد الدفع، أعطِ الكاشير رقمك</small><bdi dir="ltr">${esc(UI.phone(V.customer()))}</bdi><small>يربط الفاتورة بحسابك، فتظهر في «المشتريات».</small></div>
+        <button type="button" class="fh-text-btn" data-action="fh-link-help" aria-label="كيف يتم ربط الفاتورة؟">${ic('circle-help')}<span>كيف؟</span></button></section>`;
     return page('المتاجر',
       (order ? orderShortcut(order) : '') + link2 +
       UI.section(`متاجر ${esc(m.name)}`, `<span class="fh-muted-small">${UI.count(stores.length, 'store')}</span>`) +
@@ -169,14 +189,15 @@
   };
 
   /* ---------- Purchases ---------- */
+  const receiptSource = i => i.source === 'demo' ? UI.status('تجريبية', 'demo') : UI.status('ربطها الكاشير', 'muted');
   F.views.bags = () => {
     const m = V.mall();
     if (!m) return F.views.malls();
     const items = UI.myInvoices(m.id);
     const order = UI.openOrder(m.id);
     const stores = activeStores(m.id);
-    const head = `<div class="fh-purchases-head"><p>الفواتير المرتبطة برقم <bdi dir="ltr">${esc(UI.phone(V.customer()))}</bdi> في <strong>${esc(m.name)}</strong></p></div>`;
-    const placeBar = placeChip();
+    const head = `<p class="fh-lead">فواتيرك المدفوعة في <strong>${esc(m.name)}</strong>، مرتبطة برقم <bdi dir="ltr">${esc(UI.phone(V.customer()))}</bdi>.</p>`;
+    const codeLink = `<p class="fh-footnote">${ic('qr-code')}<span>تعذّر على الكاشير إيجادك برقمك؟ ${link('اعرض رمزك الاحتياطي', 'fh-shopper-code')}</span></p>`;
     let body = '';
     let footer = '';
     if (order) {
@@ -188,37 +209,59 @@
     }
     if (items.length) {
       const groups = [...new Set(items.map(i => i.store))].map(id => items.filter(i => i.store === id));
-      const value = V.sum(items);
-      body += `<section class="fh-summary-card">
-          ${UI.line('قيمة المشتريات', UI.cash(value))}
-          <p>${ic('circle-check')}<span>دفعتها للمتاجر. لن تدفعها مرة أخرى.</span></p>
+      body += placeChip() + `<section class="fh-summary-card">
+          ${UI.line('قيمة المشتريات', UI.cash(V.sum(items)))}
+          <p>${ic('circle-check')}<span>مدفوعة للمتاجر. لن تدفعها مرة أخرى.</span></p>
           <hr>
           ${UI.line('رسوم Free Hand عند الطلب', 'من ' + UI.cash(V.fee))}
           <p>${ic('info')}<span>رسوم الجمع ${UI.cash(V.fee)}، والتوصيل للمنزل حسب الشركة.</span></p>
         </section>` +
-        UI.section(UI.count(items.length, 'invoice') + ' من ' + UI.count(groups.length, 'store')) +
+        UI.section(UI.count(items.length, 'invoice') + ' من ' + UI.count(groups.length, 'store'), order ? UI.status('لطلب لاحق', 'wait') : UI.status('جاهزة للجمع', 'ok')) +
         groups.map(group => {
           const s = V.get('stores', group[0].store);
-          return `<section class="a-card fh-receipt-group"><div class="fh-receipt-store">${V.storeLogo(s)}<strong>${esc(s?.name || 'متجر')}</strong></div>
-            ${group.map(i => `<div class="fh-receipt${F.s.freshDemo && i.source === 'demo' ? ' is-new' : ''}">
+          return `<section class="a-card fh-receipt-group"><div class="fh-receipt-store">${V.storeLogo(s)}<div><strong>${esc(s?.name || 'متجر')}</strong><small>${UI.iso(s?.floor || '')}</small></div></div>
+            ${group.map(i => `<div class="fh-receipt${(F.s.freshDemo && i.source === 'demo') || F.s.freshReceipt === i.id ? ' is-new' : ''}">
               <div><span class="fh-receipt-no">فاتورة <bdi dir="ltr">${esc(i.number)}</bdi></span>
-              <small>${UI.count(i.bags, 'bag')}</small></div>
-              <div class="fh-receipt-end"><strong>${UI.cash(i.amount)}</strong><span class="fh-tags">${UI.status('مدفوعة للمتجر', 'ok')}${i.source === 'demo' ? UI.status('تجريبية', 'demo') : ''}</span></div>
+              <small>${UI.count(i.bags, 'bag')}</small><span class="fh-tags">${receiptSource(i)}</span></div>
+              <div class="fh-receipt-end"><strong>${UI.cash(i.amount)}</strong>${UI.status('مدفوعة للمتجر', 'ok')}</div>
             </div>`).join('')}</section>`;
-        }).join('');
+        }).join('') + codeLink;
       if (!order) footer = b(`اطلب جمع مشترياتي ${ic('arrow-left')}`, 'visit-finish');
     } else if (!order) {
       if (stores.length) {
-        body += UI.empty('receipt-text', 'لا فواتير مرتبطة بعد', 'بعد الدفع في أي متجر مشارك، اطلب من الكاشير ربط الفاتورة برقم جوالك. تظهر هنا مباشرة.') +
-          `<section class="fh-demo-card"><div>${UI.status('للتجربة', 'demo')}<h3>جرّب بفواتير تجريبية</h3><p>نضيف ${UI.count(Math.min(3, stores.length), 'invoice')} مدفوعة من متاجر ${esc(m.name)}، معلّمة بأنها تجريبية.</p></div></section>`;
+        body += `<section class="a-card fh-first-purchase"><h2>لا فواتير مرتبطة بعد</h2><p>هكذا تصل فواتيرك المدفوعة إلى هنا:</p>${UI.linkSteps(V.customer())}</section>` +
+          codeLink +
+          `<section class="fh-demo-card"><div>${UI.status('للتجربة دون كاشير', 'demo')}<h3>جرّب بفواتير تجريبية</h3><p>نضيف ${UI.count(Math.min(3, stores.length), 'invoice')} مدفوعة من متاجر ${esc(m.name)}، معلّمة بأنها تجريبية.</p></div></section>`;
         footer = b(ic('plus') + ' إضافة فواتير تجريبية', 'fh-demo-receipts');
       } else {
         body += UI.empty('store', 'لا متاجر مفعّلة في هذا المول', 'لا يمكن ربط فواتير أو إضافة فواتير تجريبية هنا حاليًا. اختر مولًا آخر.');
         footer = b('اختيار مول آخر', 'go:malls', 'secondary');
       }
     }
-    return page('المشتريات', head + placeBar + body, footer, 'bags', false);
+    return page('المشتريات', head + body, footer, 'bags', false);
   };
+
+  /* Fallback shopper code: identifies this shopper's visit to the current mall only.
+     The cashier types it when the phone search fails; it still needs the cashier's confirmation. */
+  function visitCode() {
+    const phone = V.customer();
+    const m = V.mall();
+    if (!phone || !m) return null;
+    const visit = V.data.visits[phone];
+    if (!visit || visit.mall !== m.id || !visit.qr) V.data.visits[phone] = { mall: m.id, name: F.s.name, qr: V.uid('FH').toUpperCase() };
+    else visit.name = F.s.name;
+    V.save();
+    return V.data.visits[phone];
+  }
+  F.actions['fh-shopper-code'] = () => {
+    const visit = visitCode();
+    if (!visit) return;
+    F.sheet('رمزك الاحتياطي', `<div class="fh-code-card"><small>${esc(V.mall().name)}</small><strong dir="ltr">${esc(visit.qr)}</strong><span>${esc(F.s.name || '')} · <bdi dir="ltr">${esc(V.mask(V.customer()))}</bdi></span></div>
+      <p class="fh-sheet-text">اعرض هذا الرمز على الكاشير إذا لم يجدك برقم جوالك. يصلح لهذا المول فقط، ويتأكد الكاشير من اسمك قبل الربط.</p>`, b('تم', 'close-sheet', 'secondary'));
+  };
+  // Choosing a mall records the visit, so the store can match the fallback code to this mall.
+  const selectMall = F.actions['visit-select-mall'];
+  F.actions['visit-select-mall'] = btn => { selectMall(btn); visitCode(); };
 
   F.actions['fh-demo-receipts'] = async btn => {
     if (UI.isBusy()) return;
@@ -712,8 +755,21 @@
   /* ---------- Account ---------- */
   F.views.account = () => page('حسابي',
     `<section class="a-card fh-identity"><span class="fh-avatar big">${ic('user-round')}</span><div><strong>${esc(F.s.name || 'متسوّق Free Hand')}</strong><bdi dir="ltr">${esc(UI.phone(V.customer()))}</bdi><small>الكاشير يربط فواتيرك بهذا الرقم.</small></div></section>` +
-    `<section class="a-card fh-menu">${F.listButton('المول الحالي', 'building-2', 'go:malls', esc(V.mall()?.name || 'لم تختر مولًا'))}${F.listButton('أماكن التسليم', 'map-pin', 'go:saved-places')}${F.listButton('الطلبات', 'route', 'go:orders')}${F.listButton('كيف تعمل الخدمة؟', 'circle-help', 'fh-guide')}${F.listButton('أدوات العرض', 'flask-conical', 'fh-demo-tools')}</section>`,
+    `<section class="a-card fh-menu">${F.listButton('الاسم الذي يراه الكاشير', 'user-round-pen', 'fh-edit-name', esc(F.s.name || 'أضف اسمك'))}${F.listButton('المول الحالي', 'building-2', 'go:malls', esc(V.mall()?.name || 'لم تختر مولًا'))}${F.listButton('أماكن التسليم', 'map-pin', 'go:saved-places')}${F.listButton('الطلبات', 'route', 'go:orders')}${F.listButton('كيف تعمل الخدمة؟', 'circle-help', 'fh-guide')}${F.listButton('أدوات العرض', 'flask-conical', 'fh-demo-tools')}</section>`,
     b(ic('log-out') + ' تسجيل الخروج', 'auth-logout', 'secondary'), null);
+
+  F.actions['fh-edit-name'] = () => F.sheet('الاسم الذي يراه الكاشير',
+    form('fh-name', UI.field({ name: 'name', label: 'الاسم الأول', value: F.s.name || '', attrs: 'maxlength="35" autocomplete="given-name"' })),
+    submit('حفظ الاسم') + b('إلغاء', 'close-sheet', 'secondary'));
+  F.forms['fh-name'] = d => {
+    if (A.session?.role !== 'customer') return;
+    const name = String(d.name || '').trim().slice(0, 35);
+    if (name.length < 2) return UI.showErrors({ name: 'اكتب اسمك الأول (حرفان على الأقل).' });
+    F.s.name = name; A.session.name = name;
+    if (A.model.records[A.session.id]) A.model.records[A.session.id].name = name;
+    if (V.data.visits[V.customer()]) { V.data.visits[V.customer()].name = name; V.save(); }
+    F.closeSheet(); F.render(); F.toast('تم حفظ الاسم');
+  };
 
   F.tabs.customer = [['stores', 'المتاجر', 'store'], ['bags', 'المشتريات', 'receipt-text'], ['orders', 'الطلبات', 'route'], ['saved-places', 'الأماكن', 'map-pin']];
 
