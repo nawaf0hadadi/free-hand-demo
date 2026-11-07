@@ -262,6 +262,68 @@
     check('Onboarding: mismatch shown beside the confirmation field', fieldError('confirm').includes('غير متطابقتين'));
   });
 
+  await step('Home delivery with carrier (regression)', async () => {
+    await shopper('0581112222', 'خالد');
+    await act('visit-select-mall', 'garden'); F.go('bags'); await wait(150);
+    const btn = $('#app-cta [data-action="fh-demo-receipts"]'); btn.click(); btn.click(); await wait(900);
+    check('Demo receipts: double tap adds one set', UI.myInvoices('garden').length === 1);
+    await act('visit-finish'); await act('fh-place-new', 'home', 500);
+    fill('district', 'الروضة'); fill('street', 'شارع التحلية'); fill('building', '1200'); await submit(600);
+    await act('fh-pay-open');
+    check('Checkout: carrier required before paying', toast().includes('شركة التوصيل'));
+    await act('fh-carrier', V.data.carriers.find(c => c.mall === 'garden' && c.active).id);
+    await act('fh-method', 'mada'); await act('fh-pay-open'); await act('fh-pay-confirm', null, 2000);
+    const o = V.data.orders.at(-1);
+    check('Checkout: home order with carrier fee', o?.destination === 'home' && o.fee > V.fee && F.s.route === 'order-success');
+  });
+
+  await step('Mall registration and admin decision (regression)', async () => {
+    const pdf = name => { const dt = new DataTransfer(); dt.items.add(new File(['demo'], name, { type: 'application/pdf' })); return dt.files; };
+    await signOut(); F.go('auth-role-login'); await wait(120); await act('join-mall');
+    fill('name', 'مول الاختبار الثاني'); fill('company', 'جهة الاختبار'); fill('city', 'جدة'); fill('point', 'البوابة 1');
+    const reg = $('input[type=file][name="registration"]'); reg.files = pdf('cr.pdf'); reg.dispatchEvent(new Event('change', { bubbles: true }));
+    fill('email', 'mall-two@example.com'); $('[name="password"]').value = 'Mall12345'; $('[name="confirm"]').value = 'Mall12345';
+    await submit(1500);
+    check('Mall registration: pending status after submit', F.s.route === 'u-mall-status');
+    await business('admin@example.com');
+    const m = V.data.malls.find(x => x.email === 'mall-two@example.com');
+    await act('visit-admin-mall', m.id, 500);
+    check('Admin: document is downloadable', $('.fh-doc a[download]'));
+    await act('visit-mall-approve');
+    check('Admin: approval opens the mall', m.status === 'approved');
+    await business('mall-two@example.com', 'Mall12345');
+    check('Mall: approved mall reaches its dashboard', F.s.route === 'mall-home');
+  });
+
+  await step('Store application and mall review (regression)', async () => {
+    const pdf = name => { const dt = new DataTransfer(); dt.items.add(new File(['demo'], name, { type: 'application/pdf' })); return dt.files; };
+    await signOut(); F.go('auth-role-login'); await wait(120); await act('join-store');
+    fill('mall', 'front'); fill('name', 'متجر الاختبار'); fill('category', 'هدايا'); fill('floor', 'الأول · C1'); fill('registration', '1010999999'); fill('lease', 'LS-1');
+    for (const n of ['document', 'leaseDocument']) { const f = $(`input[type=file][name="${n}"]`); f.files = pdf(n + '.pdf'); f.dispatchEvent(new Event('change', { bubbles: true })); }
+    fill('manager', 'نوف'); fill('phone', '0533330000'); fill('email', 'test-store@example.com');
+    $('[name="password"]').value = 'Store1234'; $('[name="confirm"]').value = 'Store1234'; $('[name="authorized"]').checked = true;
+    await submit(1500);
+    const s = V.data.stores.find(x => x.email === 'test-store@example.com');
+    check('Store application: submitted as pending', s?.status === 'pending');
+    await business('test-store@example.com', 'Store1234');
+    check('Store application: pending account sees its status only', F.s.route === 'join-status');
+    await business('mall@example.com');
+    await act('join-review', s.id, 500); $('[name="verified"]').checked = true; await act('join-approve');
+    check('Mall: approves the store', s.status === 'approved');
+    await business('test-store@example.com', 'Store1234');
+    check('Store: approved account opens the store screen', F.s.route === 'merchant-home');
+  });
+
+  await step('Password recovery (regression)', async () => {
+    await signOut(); F.go('auth-forgot'); await wait(120);
+    fill('email', 'shoes@example.com'); await submit(300);
+    fill('code', '1234'); $('[name="password"]').value = 'Shoes2026'; $('[name="confirm"]').value = 'Shoes2027'; await submit(300);
+    check('Recovery: mismatch beside confirmation', fieldError('confirm').includes('غير متطابقتين'));
+    $('[name="confirm"]').value = 'Shoes2026'; await submit(900);
+    await business('shoes@example.com', 'Shoes2026');
+    check('Recovery: new password signs in', F.s.route === 'merchant-home');
+  });
+
   await step('Console', async () => check('No console errors during the run', !errors.length, errors.slice(0, 3).join(' | ')));
 
   await signOut();

@@ -32,12 +32,14 @@
     gate: ['بوابة واحدة', 'بوابتان', 'بوابات', 'بوابة'],
     place: ['مكان واحد', 'مكانان', 'أماكن', 'مكانًا']
   };
-  UI.count = (n, noun) => {
+  // Dual after a preposition (من، على، إلى) takes the genitive form: «من متجرين».
+  const genitiveDual = { invoice: 'فاتورتين', bag: 'كيسين', store: 'متجرين', order: 'طلبين', request: 'طلبين', mall: 'مولين', carrier: 'شركتين', gate: 'بوابتين', place: 'مكانين' };
+  UI.count = (n, noun, afterPreposition = false) => {
     const [one, two, few, many] = nouns[noun];
     n = Number(n) || 0;
     if (n === 0) return `0 ${few}`;
     if (n === 1) return one;
-    if (n === 2) return two;
+    if (n === 2) return afterPreposition ? genitiveDual[noun] : two;
     const r = n % 100;
     return `${UI.num(n)} ${r >= 3 && r <= 10 ? few : many}`;
   };

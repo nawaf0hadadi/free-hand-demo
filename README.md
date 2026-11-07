@@ -1,10 +1,10 @@
-# Free Hand — interactive prototype
+# Free Hand | يد متحررة — interactive prototype
 
-**Free Hand** collects purchases that shoppers have already paid for in stores inside a mall. The shopper pays each store as usual and gives the cashier their mobile number; the cashier links the paid receipt to the shopper's Free Hand account. The shopper then requests collection of all linked receipts in **one service order**, chooses delivery to their **home** or to **their car at the mall**, and pays the Free Hand collection and delivery fees. The order is confirmed only after that payment.
+**Free Hand** lets shoppers shop a participating mall hands-free. The shopper pays each store as usual; the cashier links the paid receipt and its bags to the shopper's account. Linked purchases from any number of stores appear together in the shopper's **Purchases**. When ready, the shopper selects what to collect, chooses delivery to their **home** or to **their car at the mall**, pays the Free Hand collection and delivery fees, and tracks collection and handover until delivery.
 
-The interface is Arabic and right-to-left. On a phone it fills the screen; on desktop it is shown in a phone frame next to the demo tools.
+The interface is Arabic and right-to-left. On a phone it fills the screen; on desktop it is shown in a phone frame.
 
-> Prototype scope: verification codes, payments (Apple Pay, mada/card), shipping and receipt-barcode scanning are **simulated**. No SMS is sent, nothing is charged, no shipment is booked, no camera or point-of-sale system is used. See [Prototype limits](#prototype-limits).
+> Prototype scope: sign-in codes, payments (Apple Pay, mada/card), shipping and the receipt-barcode fill are **simulated**. No SMS is sent, nothing is charged, no shipment is booked, no point-of-sale system is connected. The shopper QR code and its scanning are real (see below). Data lives in this browser only. See [Limits](#limits).
 
 ---
 
@@ -17,127 +17,124 @@ No build step and nothing to install.
 python -m http.server 8790 --bind 127.0.0.1
 ```
 
-Open <http://127.0.0.1:8790/>.
+Open <http://127.0.0.1:8790/>. Any static server works (`npx serve .`). Opening `index.html` from the file system is not supported. If an old version appears, another server is using the port — choose a free one.
 
-- Any static server works (`npx serve .`, an IDE live server). Opening `index.html` from the file system is not supported.
-- If you see an older version of the app, another server is probably bound to the same port; pick a free port.
-- Map tiles (OpenStreetMap) and address lookup (Photon) need internet. Everything else works offline, including saving a place without the map.
-- Device location needs `localhost`/`127.0.0.1` or HTTPS and the browser's permission.
+**Self-test:** open <http://127.0.0.1:8790/?selftest=run>. It clears this browser's demo data, then drives the real screens through every role (≈80 checks, about one minute) and shows PASS/FAIL in a panel. Source: `tests/selftest.js`.
 
 ## Demo accounts (synthetic)
 
-All details are also in **أدوات العرض** (demo tools): the panel beside the phone on desktop, or «نسخة تجريبية · أدوات العرض» on the landing page and «أدوات العرض» in each account screen on a phone. Its «تعبئة» buttons fill the business sign-in form; «مسح بيانات العرض» resets everything.
+Also listed in **أدوات العرض** (demo tools): the button in the bottom corner on desktop, or «نسخة تجريبية · أدوات العرض» on the landing page and in each account screen.
 
 | Role | Sign-in | Password / code |
 |---|---|---|
-| New shopper | any 10-digit number starting with `05`, e.g. `0551234567` | code `1234`, then a first name |
-| Seeded demo shopper «نورة» | `0500000000` (exists without signing up, so a cashier can find it) | code `1234` |
+| New shopper | any 10-digit number starting with `05` | code `1234`, then first name (last name optional) |
+| Seeded demo shopper «نورة» | `0500000000` | code `1234` |
 | Mall management — مول الواجهة | `mall@example.com` | `Demo1234!` |
-| Store — لين للأزياء (مول الواجهة) | `store@example.com` | `Demo1234!` |
-| Store — خطوة للأحذية (مول الواجهة) | `shoes@example.com` | `Demo1234!` |
+| Store — لين للأزياء | `store@example.com` | `Demo1234!` |
+| Store — خطوة للأحذية | `shoes@example.com` | `Demo1234!` |
 | Operations team — مول الواجهة | `ops@example.com` | `Demo1234!` |
 | Delivery partner (all malls) | `delivery@example.com` | `Demo1234!` |
 | Free Hand admin | `admin@example.com` | `Demo1234!` |
 
-Password recovery uses the simulated code `1234`. Accounts created in the app store salted SHA-256 password hashes in the browser.
+## Walkthrough: purchase → link → collect → deliver
 
-## Cashier → shopper walkthrough (reproducible)
+All roles share one browser tab; switch roles by signing out and in. Data stays.
 
-All roles share one browser tab, so switching roles means signing out and in again; the data stays.
+1. **Shopper:** landing → «ابدأ الآن» → `0551234567` → code `1234` → first name «سارة» → «مول الواجهة». Home greets the shopper and shows the next step.
+2. Tap **«رمزي»** (top bar). A real QR code and a short code (e.g. `7K3M-Q9XA`) appear, valid 10 minutes. Note the short code, or «حفظ صورة الرمز» to save the QR image. Sign out (avatar → «تسجيل الخروج»).
+3. **Cashier:** «دخول حسابات الأعمال» → `store@example.com` / `Demo1234!` → «ربط فاتورة مدفوعة».
+4. Identify the shopper: «مسح رمز العميل» (camera, or «اختيار صورة الرمز» with the saved image), or type the short code → «تحقق من الرمز». If the shopper has no code: «البحث برقم الجوال». The match card shows **سارة ا.** — confirm with «نعم، هذا العميل».
+5. Enter receipt number, amount paid, bag count, optional item description; leave «الأكياس جاهزة للجمع الآن» ticked (or untick if bags are still being prepared) → «ربط الفاتورة». The confirmation shows the masked destination and receipt reference.
+6. Sign out, sign in as the shopper. **Purchases** lists the receipt under its store with items, bags and «جاهزة للجمع». Untick any receipt to keep it for later → «اطلب جمع …».
+7. Choose or add a delivery place (home address via map/device location/manual fields, or car spot with the mall's gates and levels) → review → carrier (home) → payment method (simulated) → «ادفع» → confirm. Tracking opens with the order number.
+8. **Store** (`store@example.com`): home shows the order under «جهّزها للمندوب» → «سلّمت الأكياس للمندوب».
+9. **Operations** (`ops@example.com`): open the task → «استلام المهمة» → «تأكيد الاستلام» per store with the counted bags (a lower count needs a note and is recorded as a shortfall) → «بدء التوصيل إلى السيارة» or «تسليم الطلب إلى …».
+10. **Delivery** (`delivery@example.com`): «تأكيد التسليم», or «تعذّر التسليم» with a reason → «إعادة محاولة التسليم». The shopper's tracking shows each state, any store note, and what (if anything) they need to do.
 
-1. **Shopper:** landing → «دخول المتسوّق» → `0551234567` → «إرسال رمز التحقق» → code `1234` → first name «سارة» → «مول الواجهة». The Stores screen shows the number to give the cashier; Purchases explains the four linking steps.
-2. Sign out: avatar (top bar) → «تسجيل الخروج».
-3. **Cashier:** landing → «حسابات الأعمال» → `store@example.com` / `Demo1234!` → «ربط فاتورة».
-4. Enter `0551234567` → «البحث عن العميل». The match card shows **سارة · ••••••4567**. Ask the shopper to confirm, then «نعم، هذا العميل».
-5. Enter receipt `LN-30215`, amount `420.00`, bags `2` (or «تعبئة تجريبية من باركود الفاتورة», which fills receipt data only) → «ربط الفاتورة بحساب سارة». The confirmation shows the masked destination, mall and receipt reference; «ربط فاتورة أخرى» or «الفواتير المرتبطة».
-6. Sign out («الحساب» → «تسجيل الخروج»), then sign in as the shopper with `0551234567` / `1234`.
-7. **Shopper:** «المشتريات» shows LN-30215 under لين للأزياء, paid 420.00 ر.س, «ربطها الكاشير», «جاهزة للجمع». → «اطلب جمع مشترياتي» → add a home address or car spot → review → carrier + payment method → «ادفع …» → «تأكيد الدفع» → order confirmation and tracking.
-8. Optional: sign in as `ops@example.com` (or `delivery@example.com`), open the order, confirm the store pickup, hand to the carrier / start car delivery, confirm delivery; the shopper's tracking follows each step. The store's home screen lists the order under «جهّزها للمندوب» until pickup.
+Without a cashier, a shopper can use «إضافة فواتير تجريبية» on Purchases (marked «تجريبية»).
 
-Edge cases you can try on the cashier screen: an unregistered number (guidance to correct it or have the shopper sign in and choose the mall; the receipt draft is kept), editing the number after a match (the match is cleared), submitting before confirming, linking the same receipt number twice (refused per store), the shopper's fallback code from «اعرض رمزك الاحتياطي» (must match this mall's visit; a blank or unknown code never matches), a different shopper (`0500000000`), and another mall (receipts stay in the store's mall).
+## Roles and responsibilities
 
-**Without a cashier:** Purchases → «إضافة فواتير تجريبية» adds paid demo receipts marked «تجريبية».
+| Role | Entry | Main work |
+|---|---|---|
+| Shopper | «ابدأ الآن» | Home (state-aware), Purchases (select receipts), Orders/tracking, Places; «رمزي» in the top bar; cancel an order before the first pickup |
+| Store staff | business sign-in | Link paid receipts by QR/code or number; mark bags ready; hand bags to the collector; linked receipts list |
+| Store applicant | «دخول حسابات الأعمال» → «انضمام متجر إلى مول» | Apply; see pending / rejected + reason; edit and resubmit |
+| Mall manager | business sign-in | Applications awaiting decision, operational alerts, stores, carriers, car-delivery gates and levels, live orders |
+| New mall | «تسجيل مول جديد» | Register; status until Free Hand approves; edit and resubmit after rejection |
+| Free Hand admin | `admin@example.com` | Mall queue: inspect, download documents, approve or reject with a reason |
+| Operations | `ops@example.com` | Own mall's tasks: assign, confirm pickups with bag counts, report issues, start car delivery or hand to carrier |
+| Delivery partner | `delivery@example.com` | All malls: deliveries first; confirm delivery or record a failed attempt and retry |
 
-## Role entry points
+## Shopper QR code
 
-| Role | Start | What they do | Reviewed by |
-|---|---|---|---|
-| Shopper | «دخول المتسوّق» | Stores · Purchases · Orders · Places; mall chip and account in the top bar | — |
-| Store staff | «حسابات الأعمال» → sign in | Link paid receipts, see receipts waiting for the courier, store profile | — |
-| Store applicant | «حسابات الأعمال» → «انضمام متجر إلى مول» | Apply; sign in with the application e-mail to see pending / rejected + reason; edit and resubmit | The chosen mall's management |
-| Mall manager | «حسابات الأعمال» → sign in | Applications awaiting decision, stores, home-delivery carriers, car-delivery gates and levels, live orders | — |
-| New mall | «حسابات الأعمال» → «تسجيل مول جديد» | Register; status screen until approved; edit and resubmit after rejection | Free Hand admin |
-| Free Hand admin | sign in as `admin@example.com` | Mall queue: inspect details and documents, approve, or reject with a reason | — |
-| Operations team | sign in as `ops@example.com` | Collection tasks for its own mall: store pickups, hand to carrier, car delivery | — |
-| Delivery partner | sign in as `delivery@example.com` | Same task screens for every mall | — |
+- The QR encodes only `FH1:<8-character code>` — no name, number or account id. The code is tied to one shopper and one mall, expires after 10 minutes, refreshes automatically on screen, and is **consumed** when a store links a receipt with it, so a captured code cannot be replayed. Blank, unknown, used, expired or other-mall codes are refused with a specific message.
+- Scanning uses the browser's built-in `BarcodeDetector` where available, otherwise **jsQR** (loaded only when the scanner opens). Camera needs permission; «اختيار صورة الرمز» reads a saved image; typing the short code always works; the registered mobile number is the fallback.
+- A receipt barcode never identifies the shopper; «تعبئة تجريبية من باركود الفاتورة» only fills demo receipt data.
 
-Pending and rejected accounts see only their application status. Operational screens open after approval.
+## Bag custody and exceptions
 
-## Permissions and data
+Store marks bags ready → store hands over → collector confirms the received count → car delivery or carrier → delivered. Recorded exceptions: bags not ready, missing bags / count shortfall, damaged bag, other note (per store, resolvable), failed delivery with reason and retry, cancellation by the shopper before the first pickup (receipts return to Purchases; the fee refund is simulated). Mall managers see open exceptions under «تنبيهات تشغيلية».
 
-- **Routes** are allowed per role (`access.js`, `visit-work.js`). **Action and form handlers** also check the signed-in role and approval state (`business.js`, «Role guards»), so a stale button or a direct call does nothing outside the account's scope. Mall managers only see and decide their own mall's applications; operations staff only their mall's orders; store staff only their store's receipts; shoppers only their own receipts for the selected mall.
-- A stored session must match a stored account with the same role; an edited role signs the session out on the next load.
-- **These checks run in the browser only.** In the full build every rule must be enforced on the server, with server-side sessions, password hashing, file storage and audit logs.
-- Storage: accounts, receipts, orders, malls and stores live in `sessionStorage` for the current tab (closing the tab clears them); saved places in `localStorage` per shopper; store and mall attachments in IndexedDB (`fh-join-documents`). Nothing syncs between devices or browsers.
-- Passwords never enter drafts, saved state, logs or screenshots; password fields support password managers (`autocomplete`) and a show/hide button.
-- Data migration (schema 2) is additive and runs on load; data saved by earlier versions keeps working.
+## Privacy and permissions
 
-## What changed in this update
+- The shopper's phone number is not shown on the home, Purchases or other general screens. It appears masked in the account screen («إظهار» reveals it) and masked to the cashier only when the number fallback is used. The cashier sees the first name and last-name initial.
+- Routes are allowed per role; every sensitive action and form handler also checks the signed-in role and approval state, and a session whose role does not match its stored account is signed out. Mall managers see only their mall; operations staff only their mall's orders; stores only their receipts; shoppers only their own receipts per mall.
+- **All of this runs in the browser.** A production build needs server-side enforcement, server sessions, audit logs, data-retention rules and a review against the Saudi PDPL (and ZATCA requirements for invoices if Free Hand issues them). No compliance is claimed for this prototype.
 
-- **Brand:** a new mark — two cupped hands holding a parcel ("we carry it; your hands are free") — replaces the F-with-dot. It reads from 16 to 96 px; candidates and the comparison are in `docs/brand/exploration.html` and `docs/brand/*.png`. Assets: `assets/brand/free-hand-icon.svg` (app icon), `free-hand-mark.svg`, `free-hand-mark-mono.svg`, `free-hand-wordmark.svg`, `free-hand-wordmark-mono.svg`, favicon `assets/favicon.svg`. The mark identifies the brand only; workflow steps use workflow icons.
-- **Landing:** the blank band above the headline came from `margin-top: auto` on the headline; content now starts at the top and only the sign-in actions settle at the bottom when there is spare height. Order: promise → home or car → what it costs → shopper sign-in → business accounts. The process card that repeated the brand mark was removed; the full steps live in «كيف تعمل؟» and the first Purchases screen.
-- **Receipt linking:** the shopper guidance now says what the cashier does (find by number, confirm name and last four digits, link) and how the result appears (Purchases, ready to collect, no scanning). New shoppers give a first name so the cashier has something to confirm. The cashier screen is one focused screen with a progress indicator: number → confirm match → receipt; editing the number clears a stale match; the draft survives an unmatched number; duplicate receipt numbers are refused per store; double taps link once. The fallback shopper code is real (per mall visit) and the old shortcut that matched a blank code to a default shopper is gone. Receipt barcode scanning is a labelled demo fill only.
-- **Purchases:** each receipt shows store, floor, reference, paid amount, source («ربطها الكاشير» or «تجريبية») and whether it is ready to collect.
-- **Onboarding:** business sign-in separates sign in · register a mall · apply as a store, with the reviewer named. Forms list what you need first, mark optional fields, validate every field inline (errors beside the field, typed values and chosen files kept), and every password flow asks for confirmation (mall registration, store application, store account created by a mall, password recovery, password change). «نسيت كلمة المرور؟» and «تغيير كلمة المرور» were added.
-- **Admin:** queue split into awaiting decision / rejected awaiting the mall / approved; mall documents are now stored and downloadable; rejecting requires a reason shown to the mall; resubmissions are marked.
-- **Consistency:** shared components across sign-in, forms, empty states, dashboards, status and confirmation screens; clearer tab labels per role; 44 px tap targets for checkboxes; amounts with fractions show two decimals.
+## What changed in this refinement (and what was kept)
 
-The previous version is kept as git tag `v2-before-final-update` and as the folder `free-hand-demo-v2-baseline` next to this one; the original prototype is commit `fa1dd1f` and the folder `free-hand-demo-original-baseline`.
+Kept unchanged: the brand palette and tokens (verified identical to the previous version), the Free Hand mark, the phone-frame preview, checkout and simulated payment, saved places and the map, tracking, onboarding, admin approvals, role guards, data formats (additions only).
+
+Changed:
+- **Landing:** content starts at the top and the shopper action follows it; business access is a quiet link instead of a second large button; no internal role list.
+- **Sign-in:** one short flow (number → code → first/last name); extra instructional text removed; the OTP screen shows only the last four digits.
+- **Home:** greeting by first name and a card that follows the shopper's state (start → receipts ready → collection in progress → recent delivery).
+- **Shopper QR:** real QR + short code with expiry, auto-refresh, single use and no personal data; «رمزي» in the top bar.
+- **Purchases:** receipts grouped by store with location, reference, items, bag count, readiness and source; tick/untick receipts; the order includes only the selected ready receipts; receipts that become ready later are selected by default.
+- **Post-purchase guidance:** a compact three-step sequence (pay → show your code → appears in Purchases) where it is needed; full details stay in «كيف تعمل؟».
+- **Store:** QR-first identification with number fallback, optional item description, bags-ready flag, «الأكياس جاهزة», «سلّمت الأكياس للمندوب».
+- **Operations and delivery:** staff wording instead of shopper wording; task cards show source stores with locations, bags, assignee, status icon and next action; assignment; pickup with bag count; issue reports; failed delivery and retry; different emphasis for collection vs delivery staff.
+- **Mall:** operational alerts.
+- **Fixes found along the way:** the shopper app bar could push the account button off-screen at 320 px; a receipt selection could leave nothing selected after more bags became ready; a pending match error could be invisible; inline links inside callouts had button height; Arabic dual forms after prepositions («من متجرين»); amounts with fractions show two decimals.
+
+Previous versions: git tag `v3-before-refinement` and folder `free-hand-demo-v3-baseline` (this refinement's baseline), tag `v2-before-final-update`, folder `free-hand-demo-v2-baseline`, original commit `fa1dd1f` and folder `free-hand-demo-original-baseline`. Work is on branch `refinement`.
 
 ## Source map
 
-`index.html` loads layers in order; later files override earlier screens and handlers.
-
 | File | Role |
 |---|---|
-| `app.js` | Core state, router, render, sheets, toasts |
-| `customer.js`, `partners.js`, `enterprise.js`, `studio.js`, `unified.js`, `journey.js` | Original layers, mostly superseded; kept for shared helpers |
+| `app.js` … `journey.js` | Core router/render and original layers (mostly superseded, kept for shared helpers) |
 | `access.js` | Accounts, sessions, password hashing, route allow-lists |
-| `visit.js` | Data model, demo receipts, order creation |
-| `visit-work.js` | Business actions (mall, admin, store, courier), supported routes per role |
-| `mall-joining.js` | Store applications, attachments, mall approval rules |
+| `visit.js` | Data model, demo receipts, order creation (only selected, ready receipts) |
+| `visit-work.js`, `mall-joining.js` | Business actions, approvals, attachments |
 | `address-location.js`, `saved-places.js` | Map, device location, address lookup, saved places |
-| `design.js` | Focus management, nav highlighting |
-| `shell.js` | Formatting, Arabic counts, migration, app bar, keyboard/safe areas, inline field errors, password rules, demo tools |
-| `shopper.js` | Shopper screens, linking guidance, fallback code, checkout, simulated payment, tracking |
-| `business.js` | Business sign-in, onboarding, recovery, admin, mall, cashier linking, operations, role guards |
-| `design.css` | Design system (last stylesheet) |
+| `shell.js` | Formatting, Arabic counts, migration, shopper pass (QR), app bar, inline errors, demo tools, self-test loader |
+| `shopper.js` | Shopper screens: landing, sign-in, home, QR, Purchases, checkout, payment, tracking, cancellation, account |
+| `business.js` | Business sign-in, onboarding, admin, mall, cashier linking and scanning, store handover, operations and delivery, role guards |
+| `design.css` | Design system (tokens unchanged) |
+| `tests/selftest.js` | Browser self-test (`?selftest=run`) |
 
-Dependencies are bundled locally: Leaflet 1.9.4, Lucide 1.8.0, IBM Plex Sans Arabic. External services at runtime: OpenStreetMap tiles, Photon reverse geocoding.
+## Dependencies
 
-## Verification (run in Chromium via Playwright on this build)
+Bundled locally, no install: Leaflet 1.9.4 (maps), Lucide 1.8.0 (icons), IBM Plex Sans Arabic (font), **qrcode-generator 1.4.4** (MIT, draws the shopper QR) and **jsQR 1.4.0** (Apache-2.0, decodes QR when the browser has no `BarcodeDetector`; loaded only by the cashier scanner). Licences and checksums: `assets/LEAFLET-LICENSE.txt`, `assets/THIRD-PARTY-QR.txt`. Runtime services (internet): OpenStreetMap tiles and Photon reverse geocoding.
 
-- **Cashier → shopper handoff through the normal screens:** new shopper with name step and mall choice → store sign-in → unmatched number (guidance shown, draft kept) → submit without match (blocked) → fallback code blank / wrong / correct (candidate needs confirmation) → editing the number clears the candidate and keeps focus → match «سارة ••••••4567» → submit before confirming (blocked) → confirm → editing after confirmation clears it → double-tap link (one receipt) → confirmation → same receipt number again, any case (refused) → receipt for a different shopper (`0500000000`) → shopper sees only her receipt, only in مول الواجهة (not in مول الحدائق, not Nora's) → order from the linked receipt with home delivery, carrier, mada, decline then retry (one order) → store sees it under «جهّزها للمندوب» → operations pickup and hand to carrier → delivery partner confirms → shopper tracking «تم التسليم».
-- **Shopper regressions:** demo receipts (double tap adds one set), car spot saved from Places with mall-specific gates and level, saved place in one tap at checkout, Apple Pay cancel keeps choices, single car order, map pin with Photon street fill, saving with manual fields.
-- **Mall registration:** empty submit (errors on all required fields), password mismatch (error beside the confirmation field; typed values, password and chosen file kept), error clears when typing, success → pending status with document; pending mall refused on dashboard routes and on a direct carrier action.
-- **Admin:** sign-in from the business screen and after page refresh, queue, review with document download (file content verified), reject without reason (blocked) and with reason, applicant sees the reason and resubmits with a new file, review marks the resubmission, approve, mall dashboard opens.
-- **Store application:** invalid fields (duplicate store name in the mall, short commercial registration, wrong file type, missing file, e-mail already used, weak password, missing confirmation tick), success, pending sign-in shows status, pending store refused on a direct action, a manager from another approved mall cannot see or approve it, the right mall approves, the store signs in.
-- **Passwords:** change with mismatch / wrong current / success (old password refused, new accepted); recovery with wrong code / mismatch / success for `shoes@example.com`; other demo accounts still sign in with `Demo1234!`; no password value in drafts or saved state.
-- **Unauthorized attempts:** store, mall manager, shopper and signed-out users calling the mall approve/reject handlers directly (no change), admin routes from each role (redirected), self-registration as admin (refused), tampered stored session role (signed out on reload).
-- **Layout:** 320×568 and 320×640 (landing headline and both sign-in buttons on the first screen), 390×844, 430×932, desktop 1366×900; no horizontal overflow on every new or changed screen at 320 px; all buttons and links have accessible names; all inputs have labels; tap targets ≥ 36 px (checkbox rows 44 px).
-- **Console and assets:** no errors or warnings during the runs above; every referenced local file returns 200; every icon name exists in the bundled Lucide.
+## Verification
 
-Not verified: real phones and their keyboards, VoiceOver/TalkBack, Safari and Firefox, a real location-permission prompt (a granted position was stubbed in the previous pass), and data shared between tabs or devices (not supported by design).
+- **Self-test** (`?selftest=run`, Chromium via Playwright): **79 / 79 passed**, no console errors. Covers landing, sign-up with validation, privacy (no phone on home/Purchases), QR pass (real QR, payload without personal data, 10-minute expiry), cashier linking by code (blank/unknown/used/expired/other-mall codes refused, confirmation required, draft kept, single use), number fallback (unknown number guidance, edit clears match, duplicate receipt refused, not-ready bags), QR decoded from an image of the shopper's code, item details, selection and partial ordering, payment decline then retry with one order, store ready and handover, operations assignment and pickup with shortfall note, delivery failure blocking completion, shopper tracking of reschedule and shortfall, retry and delivery, cancellation returning receipts, role guards and shopper isolation, onboarding password mismatch, home delivery with carrier, mall registration and admin approval with document download, store application and mall approval, password recovery.
+- **Layout:** 320 px (effective 291 px) shopper, store, operations, delivery, mall and admin screens — no horizontal overflow, accessible names on all buttons and links, labels on all inputs; 390×844; tablet 768×1024; desktop 1366×900. Brand tokens diffed against the baseline: identical.
+- **Assets:** no broken images and no unrendered icons on any audited screen.
 
-## Prototype limits
+Not verified: real phones, real camera scanning on a device (the image path and the decoder were verified), screen readers, Safari/Firefox, cross-device use (not supported — data is per browser tab).
 
-- Sign-in codes, payments, shipping, receipt-barcode scanning and the fallback code are simulated; no SMS, camera, payment gateway or point-of-sale integration.
-- Saudi National Address lookup is not connected (format check only); there is no live courier location tracking — tracking shows the steps recorded by staff accounts.
-- Carrier names, prices and ETAs are examples.
-- All permissions are enforced in the browser only; the full build needs server-side enforcement.
-- Data lives in this browser tab (and saved places in this browser); all roles share one demo data set to simulate the back end.
+## Limits
+
+- Codes, payment, shipping and the receipt-barcode fill are simulated; no SMS, payment gateway, POS or carrier integration.
+- Data is per browser tab (saved places per browser); the cashier and shopper must use the same tab in this prototype, so scanning a QR shown on another device cannot find that shopper.
+- No National Address lookup; no live courier location; tracking shows the steps staff record.
+- Changing the phone number is not available (it needs re-verification).
+- Permissions are enforced in the browser only.
 
 ## Screenshots
 
-`docs/screenshots/` (390×844 unless noted):
-`00-desktop-preview` · `01-landing` · `02-landing-320x568` · `03-shopper-name` · `04-stores-linking-card` · `05-purchases-before-linking` · `06-cashier-confirm-shopper` · `07-cashier-receipt` · `08-cashier-linked` · `09-shopper-receipt-linked` · `10-business-sign-in` · `11-store-application-password-mismatch` · `12-store-application-sent` · `13-mall-registration-status` · `14-admin-queue` · `15-admin-mall-review` · `16-mall-dashboard`. `docs/screenshots/before/` shows the original prototype for comparison.
+`docs/screenshots/` (390×844 unless noted): `00-desktop-preview`, `01-landing`, `02-sign-in`, `03-name`, `04-home-start`, `05-my-code`, `06-cashier-identify`, `07-cashier-confirm`, `08-cashier-linked`, `09-purchases`, `10-ops-tasks`, `11-ops-pickup-count`, `12-delivery-exception`, `13-tracking-exception`, `14-mall-alerts`, `selftest-result`. Before this refinement: `docs/screenshots/before-refinement/`; original prototype: `docs/screenshots/before/`.

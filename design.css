@@ -591,8 +591,8 @@ label.fh-receipt { display: grid; grid-template-columns: auto minmax(0, 1fr) aut
 .fh-phone-row small { font-size: var(--fs-xs); color: var(--muted); }
 
 /* Tracking states. */
-.fh-track-hero.is-closed { background: linear-gradient(140deg, #4b5e53, #2d3f35 80%); }
-.fh-track-hero.is-alert .fh-icon-tile { color: #ffd8a8; }
+.fh-track-hero.is-closed { background: linear-gradient(140deg, var(--muted), var(--deep) 80%); }
+.fh-track-hero.is-alert .fh-icon-tile { color: var(--wait-bg); }
 
 /* Staff task cards: meaningful status icons and readable detail lines. */
 .fh-icon-tile.is-alert { background: var(--wait-bg); color: var(--wait-ink); }
@@ -609,15 +609,26 @@ label.fh-receipt { display: grid; grid-template-columns: auto minmax(0, 1fr) aut
 
 /* Cashier scanner. */
 .fh-scan { display: grid; gap: 10px; justify-items: center; }
-.fh-scan video { width: 100%; max-height: 46vh; aspect-ratio: 1; object-fit: cover; border-radius: var(--r-lg); background: #1d2a23; }
+.fh-scan video { width: 100%; max-height: 46vh; aspect-ratio: 1; object-fit: cover; border-radius: var(--r-lg); background: var(--deep); }
 .fh-scan-status { margin: 0; font-size: var(--fs-sm); text-align: center; color: var(--ink); }
 .fh-scan-file { position: relative; width: auto; cursor: pointer; }
 .fh-scan-file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .fh-form-section > .a-button.small { justify-self: start; width: auto; }
+/* The title gives way first, so the mall, code and account buttons always fit. */
+.fh-appbar-title { flex: 1 1 auto; min-width: 0; }
+.fh-appbar-context { flex: 0 1 auto; }
+.fh-mall-chip { min-width: 0; }
 @media (max-width: 370px) {
   .fh-qr-chip span { display: none; }
   .fh-qr-chip { padding: 4px 9px; }
+  #u-appbar.fh-appbar { padding-inline: 12px; gap: 6px; }
+  .fh-appbar-title .fh-mark { display: none; }
+  .fh-mall-chip { max-width: 112px; padding-inline: 8px; }
+  .fh-avatar { width: 38px; height: 38px; }
 }
+
+/* Text links inside a sentence flow with the line (inline links are exempt from the 44 px target). */
+.fh-callout p .a-link, .fh-footnote .a-link, .fh-landing-fee .a-link { display: inline; min-height: 0; padding: 0; vertical-align: baseline; }
 
 /* ---------- Demo tools (outside the product) ---------- */
 #demo-tools { display: none; width: 300px; max-height: calc(100dvh - 44px); overflow-y: auto; padding: 18px; border: 1px solid #d6dfd2; border-radius: 20px; background: #fbfbf5e6; color: var(--ink); font-family: var(--font); align-self: center; }

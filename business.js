@@ -600,7 +600,7 @@
      A receipt barcode only fills receipt data; it never identifies the shopper. */
   const awaiting = s => data.orders.filter(o => o.status === 'collecting' && o.stops.some(t => t.store === s.id && !t.done));
   const storeReady = s => !!s && !inReview(s) && s.active;
-  const cashierSteps = r => UI.steps(['تعريف العميل', 'تأكيد الاسم', 'الفاتورة'], r?.person ? 2 : r?.candidate ? 1 : 0);
+  const cashierSteps = r => UI.steps(['العميل', 'تأكيد الاسم', 'الفاتورة'], r?.person ? 2 : r?.candidate ? 1 : 0);
   const blankInvoice = () => ({ mode: 'code', phone: '', code: '', candidate: null, person: null, miss: false, number: '', amount: '', bags: '1', items: '', source: 'manual' });
   // A shopper must have a Free Hand account. 0500000000 («نورة») is the seeded demo shopper account.
   function findShopper(phone) {

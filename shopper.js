@@ -186,7 +186,7 @@
     }
     if (ready.length) {
       return `<section class="fh-session is-ready"><small>مشترياتك في ${esc(m.name)}</small>
-        <h2>${UI.count(ready.length, 'invoice')} جاهزة للجمع</h2><p>من ${UI.count(storesOf(ready), 'store')}. واصل التسوق، واطلب الجمع متى شئت في طلب واحد.</p>
+        <h2>${UI.count(ready.length, 'invoice')} للجمع</h2><p>من ${UI.count(storesOf(ready), 'store', true)}. واصل التسوق، واطلب الجمع متى شئت في طلب واحد.</p>
         <div class="fh-session-actions">${b(ic('package-check') + ' اطلب الجمع', 'go:bags', 'small')}${b(ic('qr-code') + ' رمزي', 'fh-my-code', 'secondary small')}</div></section>`;
     }
     if (items.length) {
@@ -296,7 +296,7 @@
           ${UI.line('رسوم Free Hand عند الطلب', 'من ' + UI.cash(V.fee))}
           <p>${ic('info')}<span>رسوم الجمع ${UI.cash(V.fee)} لطلب واحد يشمل كل المتاجر، والتوصيل للمنزل حسب الشركة.</span></p>
         </section>` +
-        UI.section(UI.count(items.length, 'invoice') + ' من ' + UI.count(groups.length, 'store'), canSelect ? `<span class="fh-muted-small">المحدد: ${UI.num(selected.length)}</span>` : UI.status('لطلب لاحق', 'wait')) +
+        UI.section(UI.count(items.length, 'invoice') + ' من ' + UI.count(groups.length, 'store', true), canSelect ? `<span class="fh-muted-small">المحدد: ${UI.num(selected.length)}</span>` : UI.status('لطلب لاحق', 'wait')) +
         groups.map(group => {
           const s = V.get('stores', group[0].store);
           return `<section class="a-card fh-receipt-group"><div class="fh-receipt-store">${V.storeLogo(s)}<div><strong>${esc(s?.name || 'متجر')}</strong><small>${ic('map-pin')} ${UI.iso(s?.floor || '')}</small></div></div>
@@ -314,7 +314,7 @@
               </label>`;
             }).join('')}</section>`;
         }).join('') + codeLink;
-      if (!order) footer = selected.length ? b(`اطلب جمع ${UI.count(selected.length, 'invoice')} ${ic('arrow-left')}`, 'visit-finish') : b('حدّد فاتورة واحدة على الأقل', 'visit-finish', 'secondary', 'disabled');
+      if (!order) footer = selected.length ? b(`اطلب جمع ${UI.count(selected.length, 'invoice', true)} ${ic('arrow-left')}`, 'visit-finish') : b('حدّد فاتورة واحدة على الأقل', 'visit-finish', 'secondary', 'disabled');
     } else if (!order) {
       if (stores.length) {
         body += `<section class="a-card fh-first-purchase"><h2>لا فواتير مرتبطة بعد</h2>${UI.howSteps()}
@@ -637,7 +637,7 @@
     const hidden = all.length - list.length;
     const storeCount = new Set(items.map(i => i.store)).size;
     const html = checkoutSteps(0) +
-      `<h2 class="a-title">أين نسلّمك المشتريات؟</h2><p class="fh-lead">${UI.count(items.length, 'invoice')} من ${UI.count(storeCount, 'store')} في ${esc(m.name)}.</p>` +
+      `<h2 class="a-title">أين نسلّمك المشتريات؟</h2><p class="fh-lead">${UI.count(items.length, 'invoice')} من ${UI.count(storeCount, 'store', true)} في ${esc(m.name)}.</p>` +
       (list.length
         ? `<div class="fh-option-list">${list.map(p => placeCard(p, { pick: true })).join('')}</div>` + b(ic('plus') + ' إضافة مكان جديد', 'fh-place-add', 'secondary')
         : `<div class="fh-option-list">${V.select('إلى المنزل', 'fh-place-new', 'home', false, 'house', `أضف عنوانك · الجمع ${UI.cash(V.fee)} + رسوم شركة التوصيل`)}${V.select('عند سيارتك في المول', 'fh-place-new', 'parking', false, 'car-front', `أضف البوابة ورقم الموقف · ${UI.cash(V.fee)}`)}</div>`) +
@@ -797,7 +797,7 @@
     }
     const index = { collecting: 1, ready: 2, shipped: 2, delivered: 3 }[o.status] ?? 1;
     const info = {
-      collecting: { now: done ? `استلمنا الأكياس من ${UI.num(done)} من أصل ${UI.count(total, 'store')}.` : `يبدأ فريق الجمع بالمرور على ${UI.count(total, 'store')}.`, next: home ? `نسلّم الأكياس إلى ${esc(o.carrier)} لتوصيلها إلى عنوانك.` : 'نوصل الأكياس إلى سيارتك في الموقف المحدد.', you: 'لا يلزمك شيء الآن. نخبرك هنا عند كل خطوة.' },
+      collecting: { now: done ? `استلمنا الأكياس من ${UI.num(done)} من أصل ${UI.count(total, 'store', true)}.` : `يبدأ فريق الجمع بالمرور على ${UI.count(total, 'store', true)}.`, next: home ? `نسلّم الأكياس إلى ${esc(o.carrier)} لتوصيلها إلى عنوانك.` : 'نوصل الأكياس إلى سيارتك في الموقف المحدد.', you: 'لا يلزمك شيء الآن. نخبرك هنا عند كل خطوة.' },
       ready: { now: 'اكتمل الجمع، والمندوب متوجّه إلى سيارتك.', next: 'تسليم الأكياس عند سيارتك.', you: `كن قرب سيارتك في ${where}، وتحقق من عدد الأكياس عند الاستلام.` },
       shipped: { now: `${esc(o.carrier)} استلمت الطلب${o.carrierEta ? ' · التوصيل ' + esc(o.carrierEta) : ''}.`, next: 'التوصيل إلى عنوانك.', you: 'تأكد من وجود من يستلم الطلب على العنوان.' },
       delivered: { now: 'سُلّمت مشترياتك بعد تأكيد المندوب.', next: '', you: '' }
@@ -815,7 +815,7 @@
         <h2>${o.exception ? 'نعيد جدولة التسليم' : esc(statusTitle(o))}</h2><p>${info.now}</p>
         ${o.status === 'collecting' && total ? `<progress class="fh-collection-progress" value="${done}" max="${total}" aria-label="تقدّم الجمع: ${UI.num(done)} من ${UI.num(total)}"></progress>` : ''}</section>` +
       (info.next || info.you ? `<div class="fh-next-grid">${info.next ? `<div class="fh-next">${ic('arrow-left-circle')}<div><small>الخطوة التالية</small><p>${info.next}</p></div></div>` : ''}${info.you ? `<div class="fh-next is-you">${ic('user-round-check')}<div><small>المطلوب منك</small><p>${info.you}</p></div></div>` : ''}</div>` : '') +
-      (issues.length ? UI.callout('triangle-alert', 'ملاحظة من فريق الجمع', issues.map(s => `${esc(V.get('stores', s.store)?.name || 'متجر')}: ${esc(UI.issueTypes[s.issue.type] || '')}${s.receivedBags != null ? ` (استلمنا ${UI.count(s.receivedBags, 'bag')} من ${UI.num(s.expectedBags)})` : ''}`).join('<br>') + '<br>نتابع مع المتجر، ونبلغك بالتحديث هنا.', 'warn') : '') +
+      (issues.length ? UI.callout('triangle-alert', 'ملاحظة من فريق الجمع', issues.map(s => `${esc(V.get('stores', s.store)?.name || 'متجر')}: ${esc(UI.issueTypes[s.issue.type] || '')}${s.receivedBags != null ? ` (الأكياس المستلمة: ${UI.num(s.receivedBags)} من أصل ${UI.num(s.expectedBags)})` : ''}`).join('<br>') + '<br>نتابع مع المتجر، ونبلغك بالتحديث هنا.', 'warn') : '') +
       `<section class="a-card"><ol class="fh-timeline">${stages.map(([i, t, sub], n) => `<li class="${n < index || o.status === 'delivered' ? 'done' : n === index ? 'current' : ''}"${n === index ? ' aria-current="step"' : ''}><span>${ic(n < index || o.status === 'delivered' ? 'check' : i)}</span><div><strong>${t}</strong><small>${sub}</small></div></li>`).join('')}</ol></section>` +
       `<section class="a-card fh-review-block"><div class="fh-block-head"><h3>${ic(placeIcon(p))} ${home ? 'عنوان التوصيل' : 'مكان السيارة'}</h3><span class="fh-muted-small">كما عند الطلب</span></div>
         <strong>${esc(p.title)}</strong><p>${where}</p>${p.notes ? `<p class="fh-muted-small">${esc(p.notes)}</p>` : ''}
